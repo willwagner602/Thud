@@ -10,7 +10,7 @@ class Board(object):
 
     def __init__(self):
         self.name = 'Game Board'
-        self.squares = [[0 for x in range(15)] for y in range(15)]
+        self.squares = [[str(x) + ',' + str(y) for x in range(15)] for y in range(15)]
         self.populate_invalid_moves()
         self.populate_starting_units()
 
@@ -19,7 +19,7 @@ class Board(object):
             print(row)
 
     def populate_invalid_moves(self):
-        invalid_flag = 1
+        invalid_flag = 0
         # fill triangles at 4 corners of board
         for x in range(15):
             if x < 5:
@@ -59,7 +59,18 @@ class Board(object):
                     self.squares[row][column] = Troll(row, column)
 
     def validate_clear_path(self, start, destination):
-        pass
+        x_travel = list(range(start[0], destination[0]))
+        y_travel = list(range(start[1], destination[1]))
+        # rig up dummy list for horizontal or vertical moves
+        if not x_travel:
+            x_travel = [start[0] for x in range(0, len(y_travel))]
+        if not y_travel:
+            y_travel = [start[1] for x in range(0, len(x_travel))]
+        for x, y in list(zip(x_travel, y_travel)):
+            if isinstance(self.squares[x][y], Piece) or not self.squares[x][y]:
+                return False
+        return True
+
 
     def validate_dwarf_move(self, start, destination):
         # is a valid diagonal move
@@ -107,6 +118,7 @@ class Piece(object):
     def __repr__(self):
         return self.name
 
+    # returns false so that moves can be evaluated against this object
     def __bool__(self):
         return True
 

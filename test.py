@@ -39,16 +39,16 @@ class BoardTest(unittest.TestCase):
             self.assertEqual(test_board.squares[row][column].name, 'Troll')
 
     def test_validate_clear_path_success(self):
-        dwarf = Thud.Dwarf(0, 0)
-        print(type(dwarf), bool(dwarf))
-        pass
+        test_board = Thud.Board()
+        self.assertTrue(test_board.validate_clear_path((1, 5), (1, 10)))
 
-    def test_validate_clear_path_failure(self):
-        pass
+    def test_validate_clear_path_through_piece_failure(self):
+        test_board = Thud.Board()
+        self.assertFalse(test_board.validate_clear_path((5, 8), (7, 8)))
 
     def test_dwarf_move_east_success(self):
         pass
-        self.assertTrue(Thud.Board.validate_dwarf_move())
+        # self.assertTrue(Thud.Board.validate_dwarf_move())
 
     def test_dwarf_move_west_success(self):
         pass
