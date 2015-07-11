@@ -1,18 +1,19 @@
 __author__ = 'wwagner'
 
-import logging
-import datetime
-
-logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
-
 
 class Board(object):
 
     def __init__(self):
-        self.name = 'Game Board'
+        self.name = ''
         self.squares = [[str(x) + ',' + str(y) for x in range(15)] for y in range(15)]
         self.populate_invalid_moves()
         self.populate_starting_units()
+
+    def __getitem__(self, key):
+        return self.squares[key]
+
+    def __setitem__(self, key, value):
+        self.squares[key] = value
 
     def print_board(self):
         for row in self.squares:
@@ -58,24 +59,32 @@ class Board(object):
                 if self.squares[row][column]:
                     self.squares[row][column] = Troll(row, column)
 
+
+class Game(object):
+
+    def __init__(self):
+        self.name = ''
+        self.board = Board()
+
     def validate_clear_path(self, start, destination):
         x_travel = list(range(start[0], destination[0]))
         y_travel = list(range(start[1], destination[1]))
+
         # rig up dummy list for horizontal or vertical moves
         if not x_travel:
             x_travel = [start[0] for x in range(0, len(y_travel))]
         if not y_travel:
             y_travel = [start[1] for x in range(0, len(x_travel))]
+
         for x, y in list(zip(x_travel, y_travel)):
-            if isinstance(self.squares[x][y], Piece) or not self.squares[x][y]:
+            if isinstance(self.board[x][y], Piece) or not self.board[x][y]:
                 return False
         return True
-
 
     def validate_dwarf_move(self, start, destination):
         # is a valid diagonal move
         if abs(start[0] - destination[0]) == abs(start[1] - destination[1]):
-            return validate_clear_path(start, destination)
+            return self.validate_clear_path(start, destination)
         # or is a throw
         pass
 
@@ -89,6 +98,9 @@ class Board(object):
         # throw less than or equal to number of allies in line opposite direction of travel
         pass
 
+    def confirm_move_on_board(self, destination):
+        pass
+
     def validate_move(self, start, destination):
         if self.confirm_move_on_board(start, destination):
             if start.name == 'Dwarf':
@@ -98,9 +110,11 @@ class Board(object):
         else:
             return False
 
-    def remove_captured_piece(self, piece):
-        self.board[piece.x][piece.y] = 1
-        piece.capture()
+    def remove_captured_piece(self, destination):
+        x, y = destination
+        self.board[x][y].piece.capture()
+        self.board[x][y] = (x, y)
+        return True
 
 
 class Piece(object):

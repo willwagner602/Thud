@@ -38,12 +38,24 @@ class BoardTest(unittest.TestCase):
             column = coordinates[1]
             self.assertEqual(test_board.squares[row][column].name, 'Troll')
 
-    def test_validate_clear_path_success(self):
+    def test_getitem(self):
         test_board = Thud.Board()
+        self.assertEqual(test_board[7][7], 0)
+
+    def test_setitem(self):
+        test_board = Thud.Board()
+        self.assertEqual(test_board[7][7], 0)
+        test_board[7][7] = 12345
+        self.assertEqual(test_board[7][7], 12345)
+
+class GameTest(unittest.TestCase):
+
+    def test_validate_clear_path_success(self):
+        test_board = Thud.Game()
         self.assertTrue(test_board.validate_clear_path((1, 5), (1, 10)))
 
     def test_validate_clear_path_through_piece_failure(self):
-        test_board = Thud.Board()
+        test_board = Thud.Game()
         self.assertFalse(test_board.validate_clear_path((5, 8), (7, 8)))
 
     def test_dwarf_move_east_success(self):
