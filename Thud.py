@@ -1,5 +1,10 @@
 __author__ = 'wwagner'
 
+import logging
+
+logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
+import datetime
+
 
 class Board(object):
 
@@ -67,20 +72,35 @@ class Game(object):
         self.board = Board()
 
     def validate_clear_path(self, piece, destination):
+        logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, piece.x, piece.y, str(destination)))
         destination_x, destination_y = destination
+
         # don't look at the starting space because we know there's a piece there
-        x_travel = list(range(piece.x + 1, destination_x))
-        y_travel = list(range(piece.y + 1, destination_y))
+        if piece.x - destination_x > 0:
+            x_travel = list(range(piece.x - 1, destination_x, -1))
+        else:
+            x_travel = list(range(piece.x + 1, destination_x))
+        if piece.y - destination_y > 0:
+            y_travel = list(range(piece.y - 1, destination_y, -1))
+        else:
+            y_travel = list(range(piece.y + 1, destination_y))
+
+        logging.debug("Move ranges: x - {}, y - {}".format(','.join(map(str, x_travel)), ','.join(map(str, y_travel))))
 
         if not x_travel:
+            logging.debug("Horizontal move calculated along x == {}".format(piece.x))
             x_travel = [piece.x for x in range(0, len(y_travel))]
         if not y_travel:
+            logging.debug("Vertical move calculated along y == {}".format(piece.y))
             y_travel = [piece.y for x in range(0, len(x_travel))]
         # move is only 1 square, is already validated by earlier functions
         if not x_travel and not y_travel:
             return True
 
-        for x, y in list(zip(x_travel, y_travel)):
+        travel_squares = list(zip(x_travel, y_travel))
+        logging.debug('Checking squares {}'.format(', '.join(map(str, travel_squares))))
+        for x, y in travel_squares:
             if isinstance(self.board[x][y], Piece) or not self.board[x][y]:
                 return False
         return True

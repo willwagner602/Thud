@@ -65,6 +65,10 @@ class GameTest(unittest.TestCase):
         test_piece = self.test_game.board[7][8]
         self.assertFalse(self.test_game.validate_clear_path(test_piece, (9, 8)))
 
+    def test_validate_clear_path_through_multiple_pieces_failure(self):
+        test_piece = self.test_game.board[12][3]
+        self.assertFalse(self.test_game.validate_clear_path(test_piece, (2, 13)))
+
     def test_validate_dwarf_move_east_success(self):
         test_dwarf = self.test_game.board[0][5]
         self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (13, 5)))
@@ -106,10 +110,12 @@ class GameTest(unittest.TestCase):
         self.assertFalse(self.test_game.validate_dwarf_move(test_dwarf, (2, 4)))
 
     def test_validate_dwarf_move_impassable_failure(self):
-        pass
+        test_dwarf = self.test_game.board[14][5]
+        self.assertFalse(self.test_game.validate_dwarf_move(test_dwarf, (14, 3)))
 
     def test_validate_dwarf_move_creature_failure(self):
-        pass
+        test_dwarf = self.test_game.board[12][3]
+        self.assertFalse(self.test_game.validate_dwarf_move(test_dwarf, (5, 10)))
 
     def test_determine_troll_move_or_attack_is_attack(self):
         pass
