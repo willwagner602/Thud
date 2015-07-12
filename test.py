@@ -48,6 +48,9 @@ class BoardTest(unittest.TestCase):
         self.test_board[7][7] = 12345
         self.assertEqual(self.test_board[7][7], 12345)
 
+    def test_print_board(self):
+        self.test_board.print_board()
+
 
 class GameTest(unittest.TestCase):
 
@@ -55,31 +58,63 @@ class GameTest(unittest.TestCase):
         self.test_game = Thud.Game()
 
     def test_validate_clear_path_success(self):
-        self.assertTrue(self.test_game.validate_clear_path((1, 5), (1, 10)))
+        test_piece = self.test_game.board[1][4]
+        self.assertTrue(self.test_game.validate_clear_path(test_piece, (1, 9)))
 
     def test_validate_clear_path_through_piece_failure(self):
-        self.assertFalse(self.test_game.validate_clear_path((5, 8), (7, 8)))
+        test_piece = self.test_game.board[7][8]
+        self.assertFalse(self.test_game.validate_clear_path(test_piece, (9, 8)))
 
-    def test_determine_move_or_attack_is_attack(self):
-        self.test_game.dwarf_move_or_attack((0, 8), (6, 8))
+    def test_validate_dwarf_move_east_success(self):
+        test_dwarf = self.test_game.board[0][5]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (13, 5)))
 
-    def test_determine_move_or_attack_is_friendly(self):
-        self.test_game.dwarf_move_or_attack((0, 8), (0, 9))
+    def test_validate_dwarf_move_west_success(self):
+        test_dwarf = self.test_game.board[12][3]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (3, 3)))
 
-    def test_dwarf_move_east_success(self):
+    def test_validate_dwarf_move_north_success(self):
+        test_dwarf = self.test_game.board[10][13]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (10, 2)))
+
+    def test_validate_dwarf_move_south_success(self):
+        test_dwarf = self.test_game.board[3][2]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (3, 11)))
+
+    def test_validate_dwarf_move_northeast_success(self):
+        test_dwarf = self.test_game.board[2][11]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (5, 8)))
+
+    def test_validate_dwarf_move_southeast_success(self):
+        test_dwarf = self.test_game.board[2][3]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (5, 6)))
+
+    def test_validate_dwarf_move_northwest_success(self):
+        test_dwarf = self.test_game.board[10][13]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (6, 9)))
+
+    def test_validate_dwarf_move_southwest_success(self):
+        test_dwarf = self.test_game.board[12][3]
+        self.assertTrue(self.test_game.validate_dwarf_move(test_dwarf, (9, 6)))
+
+    def test_validate_dwarf_move_non_diagonal_failure(self):
+        test_dwarf = self.test_game.board[12][3]
+        self.assertFalse(self.test_game.validate_dwarf_move(test_dwarf, (10, 6)))
+
+    def test_validate_dwarf_move_non_horizontal_failure(self):
+        test_dwarf = self.test_game.board[12][3]
+        self.assertFalse(self.test_game.validate_dwarf_move(test_dwarf, (2, 4)))
+
+    def test_validate_dwarf_move_impassable_failure(self):
         pass
-        # self.assertTrue(Thud.Board.validate_dwarf_move())
 
-    def test_dwarf_move_west_success(self):
+    def test_validate_dwarf_move_creature_failure(self):
         pass
 
-    def test_dwarf_move_north_success(self):
+    def test_determine_troll_move_or_attack_is_attack(self):
         pass
 
-    def test_dwarf_move_south_success(self):
-        pass
-
-    def test_dwarf_move_failure(self):
+    def test_determine_troll_move_or_attack_is_friendly(self):
         pass
 
 # class PieceTest(unittest.TestCase)

@@ -5,7 +5,7 @@ class Board(object):
 
     def __init__(self):
         self.name = ''
-        self.squares = [[str(x) + ',' + str(y) for x in range(15)] for y in range(15)]
+        self.squares = [[str(x) + ',' + str(y) for y in range(15)] for x in range(15)]
         self.populate_invalid_moves()
         self.populate_units()
 
@@ -16,7 +16,7 @@ class Board(object):
         self.squares[key] = value
 
     def print_board(self):
-        for row in self.squares:
+        for row in zip(*self.squares[::1]):
             print(row)
 
     def populate_invalid_moves(self):
@@ -66,40 +66,37 @@ class Game(object):
         self.name = ''
         self.board = Board()
 
-    def validate_clear_path(self, start, destination):
-        x_travel = list(range(start[0], destination[0]))
-        y_travel = list(range(start[1], destination[1]))
+    def validate_clear_path(self, piece, destination):
+        destination_x, destination_y = destination
+        # don't look at the starting space because we know there's a piece there
+        x_travel = list(range(piece.x + 1, destination_x))
+        y_travel = list(range(piece.y + 1, destination_y))
 
-        # rig up dummy list for horizontal or vertical moves
         if not x_travel:
-            x_travel = [start[0] for x in range(0, len(y_travel))]
+            x_travel = [piece.x for x in range(0, len(y_travel))]
         if not y_travel:
-            y_travel = [start[1] for x in range(0, len(x_travel))]
+            y_travel = [piece.y for x in range(0, len(x_travel))]
+        # move is only 1 square, is already validated by earlier functions
+        if not x_travel and not y_travel:
+            return True
 
         for x, y in list(zip(x_travel, y_travel)):
             if isinstance(self.board[x][y], Piece) or not self.board[x][y]:
                 return False
         return True
 
-    def validate_dwarf_attack(self, piece, destination):
+    def validate_dwarf_attack(self, piece, target):
         pass
 
-    def validate_troll_attack(self, start, destination):
+    def validate_troll_attack(self, piece, target):
         pass
 
-    def validate_dwarf_move(self):
-        pass
-
-    def dwarf_move_or_attack(self, start, destination):
-        piece = self.board[start[0]][start[1]]
+    def validate_dwarf_move(self, piece, destination):
         x, y = destination
-        if isinstance(self.board[x][y], Piece):
-            if piece != self.board[x][y]:
-                return self.validate_dwarf_attack(piece, destination)
-            else:
-                return False
+        if abs(piece.x - x) == abs(piece.y - y) or piece.x == x or piece.y == y:
+            return self.validate_clear_path(piece, destination)
         else:
-            return self.validate_dwarf_move
+            return False
 
     def troll_move_or_attack(self, start, destination):
         piece = self.board[start[0]][start[1]]
@@ -146,7 +143,6 @@ class Game(object):
         if self.validate_destination(destination):
             target = self.board[destination[0]][destination[1]]
             if isinstance(target, Piece):
-                # figure out if a dwarf is making a valid attack
                 if isinstance(piece, Dwarf):
                     return self.validate_dwarf_attack(piece, target)
                 # trolls cannot move on top of another piece
