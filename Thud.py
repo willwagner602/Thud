@@ -7,7 +7,7 @@ class Board(object):
         self.name = ''
         self.squares = [[str(x) + ',' + str(y) for x in range(15)] for y in range(15)]
         self.populate_invalid_moves()
-        self.populate_starting_units()
+        self.populate_units()
 
     def __getitem__(self, key):
         return self.squares[key]
@@ -36,7 +36,7 @@ class Board(object):
         # Place center stone
         self.squares[7][7] = 0
 
-    def populate_starting_units(self):
+    def populate_units(self):
         # add dwarves to edges
         for row in range(len(self.squares)):
             for column in range(len(self.squares[row])):
@@ -81,12 +81,36 @@ class Game(object):
                 return False
         return True
 
-    def validate_dwarf_move(self, start, destination):
-        # is a valid diagonal move
-        if abs(start[0] - destination[0]) == abs(start[1] - destination[1]):
-            return self.validate_clear_path(start, destination)
-        # or is a throw
+    def validate_dwarf_attack(self, piece, destination):
         pass
+
+    def validate_troll_attack(self, start, destination):
+        pass
+
+    def validate_dwarf_move(self):
+        pass
+
+    def dwarf_move_or_attack(self, start, destination):
+        piece = self.board[start[0]][start[1]]
+        x, y = destination
+        if isinstance(self.board[x][y], Piece):
+            if piece != self.board[x][y]:
+                return self.validate_dwarf_attack(piece, destination)
+            else:
+                return False
+        else:
+            return self.validate_dwarf_move
+
+    def troll_move_or_attack(self, start, destination):
+        piece = self.board[start[0]][start[1]]
+        x, y = destination
+        if isinstance(self.board[x][y], Piece):
+            if piece != self.board[x][y]:
+                return self.validate_troll_attack(start, destination)
+            else:
+                return False
+        else:
+            return self.validate_troll_move()
 
     def validate_troll_move(self, start, destination):
         # is a straight move 1 square in any direction
@@ -98,15 +122,42 @@ class Game(object):
         # throw less than or equal to number of allies in line opposite direction of travel
         pass
 
-    def confirm_move_on_board(self, destination):
+    def find_adjacent_dwarves(self, target):
+        # given target square, return list of adjacent dwarf objects, or false
         pass
 
+    def determine_troll_move_or_attack(self, piece, target):
+        # look at every square within 1 of target, pass list if found, else move
+        attacks = self.find_adjacent_dwarves(target)
+        if attacks:
+            return self.validate_troll_attack(piece, target)
+        else:
+            return False
+
+    def validate_destination(self, destination):
+        try:
+            destination = self.board[destination[0]][destination[1]]
+            return True
+        except IndexError:
+            return False
+
     def validate_move(self, start, destination):
-        if self.confirm_move_on_board(start, destination):
-            if start.name == 'Dwarf':
-                return self.validate_dwarf_move(start, destination)
+        piece = self.board[start[0]][start[1]]
+        if self.validate_destination(destination):
+            target = self.board[destination[0]][destination[1]]
+            if isinstance(target, Piece):
+                # figure out if a dwarf is making a valid attack
+                if isinstance(piece, Dwarf):
+                    return self.validate_dwarf_attack(piece, target)
+                # trolls cannot move on top of another piece
+                else:
+                    return False
             else:
-                return self.validate_troll_move(start, destination)
+                target = destination
+                if isinstance(piece, Dwarf):
+                    self.validate_dwarf_move(piece, target)
+                else:
+                    self.determine_troll_move_or_attack(piece, target)
         else:
             return False
 
@@ -132,9 +183,13 @@ class Piece(object):
     def __repr__(self):
         return self.name
 
-    # returns false so that moves can be evaluated against this object
     def __bool__(self):
         return True
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return True
+        return False
 
     def capture(self):
         self.status = 'Captured'

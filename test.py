@@ -6,8 +6,10 @@ import Thud
 
 class BoardTest(unittest.TestCase):
 
+    def setUp(self):
+        self.test_board = Thud.Board()
+
     def test_initial_piece_setup(self):
-        test_board = Thud.Board()
         # Arrayed identically to board
         dwarf_positions = [(5, 14), (6, 14), (8, 14), (9, 14),
                            (4, 13), (10, 13),
@@ -27,7 +29,7 @@ class BoardTest(unittest.TestCase):
         for coordinates in dwarf_positions:
             row = coordinates[0]
             column = coordinates[1]
-            self.assertEqual(test_board.squares[row][column].name, 'Dwarf')
+            self.assertEqual(self.test_board.squares[row][column].name, 'Dwarf')
 
         # Arrayed identically to board
         troll_positions = [(6, 8), (7, 8), (8, 8),
@@ -36,27 +38,33 @@ class BoardTest(unittest.TestCase):
         for coordinates in troll_positions:
             row = coordinates[0]
             column = coordinates[1]
-            self.assertEqual(test_board.squares[row][column].name, 'Troll')
+            self.assertEqual(self.test_board.squares[row][column].name, 'Troll')
 
     def test_getitem(self):
-        test_board = Thud.Board()
-        self.assertEqual(test_board[7][7], 0)
+        self.assertEqual(self.test_board[7][7], 0)
 
     def test_setitem(self):
-        test_board = Thud.Board()
-        self.assertEqual(test_board[7][7], 0)
-        test_board[7][7] = 12345
-        self.assertEqual(test_board[7][7], 12345)
+        self.assertEqual(self.test_board[7][7], 0)
+        self.test_board[7][7] = 12345
+        self.assertEqual(self.test_board[7][7], 12345)
+
 
 class GameTest(unittest.TestCase):
 
+    def setUp(self):
+        self.test_game = Thud.Game()
+
     def test_validate_clear_path_success(self):
-        test_board = Thud.Game()
-        self.assertTrue(test_board.validate_clear_path((1, 5), (1, 10)))
+        self.assertTrue(self.test_game.validate_clear_path((1, 5), (1, 10)))
 
     def test_validate_clear_path_through_piece_failure(self):
-        test_board = Thud.Game()
-        self.assertFalse(test_board.validate_clear_path((5, 8), (7, 8)))
+        self.assertFalse(self.test_game.validate_clear_path((5, 8), (7, 8)))
+
+    def test_determine_move_or_attack_is_attack(self):
+        self.test_game.dwarf_move_or_attack((0, 8), (6, 8))
+
+    def test_determine_move_or_attack_is_friendly(self):
+        self.test_game.dwarf_move_or_attack((0, 8), (0, 9))
 
     def test_dwarf_move_east_success(self):
         pass
