@@ -117,7 +117,61 @@ class GameTest(unittest.TestCase):
         test_dwarf = self.test_game.board[12][3]
         self.assertFalse(self.test_game.validate_dwarf_move(test_dwarf, (5, 10)))
 
+    def test_validate_troll_move_east_success(self):
+        test_troll = self.test_game.board[8][6]
+        pass
+
+    def test_validate_troll_move_west_success(self):
+        test_troll = self.test_game.board[6][8]
+        pass
+
+    def test_validate_troll_move_south_success(self):
+        test_troll = self.test_game.board[6][8]
+        pass
+
+    def test_validate_troll_move_north_success(self):
+        test_troll = self.test_game.board[8][6]
+        pass
+
+    def test_validate_troll_move_northeast_success(self):
+        test_troll = self.test_game.board[8][6]
+        pass
+
+    def test_validate_troll_move_southeast_success(self):
+        test_troll = self.test_game.board[8][6]
+        pass
+
+    def test_validate_troll_move_northwest_success(self):
+        test_troll = self.test_game.board[6][8]
+        pass
+
+    def test_validate_troll_move_southwest_success(self):
+        test_troll = self.test_game.board[6][8]
+        pass
+
+    def test_find_adjacent_dwarves_find_three_success(self):
+        target_square = (1, 5)
+        target_dwarves = [self.test_game.board[0][5], self.test_game.board[1][4], self.test_game.board[0][6]]
+        self.assertEqual(self.test_game.find_adjacent_dwarves(target_square), target_dwarves)
+
+    def test_find_adjacent_dwarves_find_two_success(self):
+        target_square = (14, 7)
+        target_dwarves = [self.test_game.board[14][6], self.test_game.board[14][8]]
+        self.assertEqual(self.test_game.find_adjacent_dwarves(target_square), target_dwarves)
+
     def test_determine_troll_move_or_attack_is_attack(self):
+        test_troll = self.test_game.board[6][6]
+        destination = self.test_game.board[1][6]
+        pass
+
+    def test_determine_troll_move_or_attack_is_move(self):
+        test_troll = self.test_game.board[6][6]
+        destination = self.test_game.board[5][6]
+        pass
+
+    def test_determine_troll_move_or_attack_is_neither(self):
+        test_troll = self.test_game.board[6][6]
+        destination = self.test_game.board[4][6]
         pass
 
     def test_determine_troll_move_or_attack_is_friendly(self):

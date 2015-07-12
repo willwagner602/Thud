@@ -108,9 +108,6 @@ class Game(object):
     def validate_dwarf_attack(self, piece, target):
         pass
 
-    def validate_troll_attack(self, piece, target):
-        pass
-
     def validate_dwarf_move(self, piece, destination):
         x, y = destination
         if abs(piece.x - x) == abs(piece.y - y) or piece.x == x or piece.y == y:
@@ -118,30 +115,34 @@ class Game(object):
         else:
             return False
 
-    def troll_move_or_attack(self, start, destination):
-        piece = self.board[start[0]][start[1]]
-        x, y = destination
-        if isinstance(self.board[x][y], Piece):
-            if piece != self.board[x][y]:
-                return self.validate_troll_attack(start, destination)
-            else:
-                return False
-        else:
-            return self.validate_troll_move()
-
-    def validate_troll_move(self, start, destination):
-        # is a straight move 1 square in any direction
-
-        # or is a throw
-        pass
-
     def validate_throw(self, piece, destination):
         # throw less than or equal to number of allies in line opposite direction of travel
         pass
 
-    def find_adjacent_dwarves(self, target):
-        # given target square, return list of adjacent dwarf objects, or false
+    def validate_troll_attack(self, piece, target):
         pass
+
+    def find_adjacent_dwarves(self, destination):
+        # given target square, return list of adjacent dwarf objects, or false
+        dest_x, dest_y = destination
+        check_squares = []
+        targets = []
+        for x_value in range(dest_x-1, dest_x+2):
+            for y_value in range(dest_y-1, dest_y+2):
+                check_squares.append((x_value, y_value))
+        logging.debug("{}: Checking for dwarves at {}.".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'),', '.join(map(str, check_squares))))
+        for x, y in check_squares:
+            try:
+                square = self.board[x][y]
+                if isinstance(square, Dwarf):
+                    targets.append(square)
+            except IndexError:
+                logging.debug("Checked for dwarf out of bounds at {},{}.".format(x, y))
+        if targets:
+            return targets
+        else:
+            return False
 
     def determine_troll_move_or_attack(self, piece, target):
         # look at every square within 1 of target, pass list if found, else move
@@ -149,7 +150,10 @@ class Game(object):
         if attacks:
             return self.validate_troll_attack(piece, target)
         else:
-            return False
+            x, y = target
+            if piece.x - x <= 1 and piece.y - y <= 1:
+                return True
+        return False
 
     def validate_destination(self, destination):
         try:
