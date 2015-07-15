@@ -64,6 +64,22 @@ class Board(object):
                 if self.squares[row][column]:
                     self.squares[row][column] = Troll(row, column)
 
+    def move_piece(self, piece, x, y):
+        piece_x = piece.x
+        piece_y = piece.y
+        self.squares[x][y] = piece
+        self.squares[piece_x][piece_y] = str(piece_x) + ',' + str(piece_y)
+
+    def get_piece(self, x, y):
+        tenant = self.squares[x][y]
+        if isinstance(tenant, Piece):
+            return tenant
+        else:
+            return False
+
+    def set_square(self, x, y, value):
+        self.squares[x][y] = value
+
 
 class Game(object):
 
@@ -74,7 +90,10 @@ class Game(object):
     def validate_clear_path(self, piece, destination):
         logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, piece.x, piece.y, str(destination)))
-        destination_x, destination_y = destination
+        if isinstance(destination, Troll):
+            destination_x, destination_y = destination
+        else:
+            destination_x, destination_y = destination
 
         # don't look at the starting space because we know there's a piece there
         if piece.x - destination_x > 0:
@@ -106,7 +125,8 @@ class Game(object):
         return True
 
     def validate_dwarf_attack(self, piece, target):
-        pass
+        if self.validate_throw(piece, target) and self.validate_clear_path(piece, target):
+            return target
 
     def validate_dwarf_move(self, piece, destination):
         x, y = destination
@@ -115,12 +135,60 @@ class Game(object):
         else:
             return False
 
-    def validate_throw(self, piece, destination):
-        # throw less than or equal to number of allies in line opposite direction of travel
-        pass
+    def validate_throw(self, piece, target):
+        # calculate inverse target square to check for line of creatures
+        if isinstance(target, Piece):
+            x = target.x
+            y = target.y
+        else:
+            x, y = target
+        inverse_x = piece.x - x
+        inverse_y = piece.y - y
 
-    def validate_troll_attack(self, piece, target):
-        pass
+        logging.debug("{}: Checking valid attack at {},{}.".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), x, y))
+
+        if piece.x - inverse_x > 0:
+            x_check = list(range(piece.x - 1, inverse_x, -1))
+        else:
+            x_check = list(range(piece.x + 1, inverse_x))
+        if piece.y - inverse_y > 0:
+            y_check = list(range(piece.y - 1, inverse_y, -1))
+        else:
+            y_check = list(range(piece.y + 1, inverse_y))
+
+        if not x_check:
+            x_check = [piece.x for x in range(0, len(x_check))]
+        if not y_check:
+            y_check = [piece.y for x in range(0, len(y_check))]
+
+        check_squares = list(zip(x_check, y_check))
+        logging.debug('Checking squares {} for toss.'.format(', '.join(map(str, check_squares))))
+        for x, y in check_squares:
+            if not isinstance(self.board.get_piece(x, y), Piece):
+                return False
+        return True
+
+    def validate_troll_move_or_attack(self, piece, target):
+        attacks = self.find_adjacent_dwarves(target)
+        x, y = target
+        single_space_move = (abs(piece.x - x) <= 1 and abs(piece.y - y) <= 1)
+        logging.debug("{}: Validating troll move or attack at {},{} Single Space Move: {}".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece.x, piece.y, single_space_move))
+        if attacks and single_space_move:
+            logging.debug("Checking single space attack at {},{} against {}.".format(x, y, ','.join(map(str, attacks))))
+            return attacks
+        elif single_space_move:
+            logging.debug("Single space move from {},{} to {}, {}.".format(piece.x, piece.y, x, y))
+            return True
+        elif attacks:
+            logging.debug("Checking shove attack at {},{} against {}.".format(x, y, ','.join(map(str, attacks))))
+            if self.validate_throw(piece, target) and self.validate_clear_path(piece, target):
+                return attacks
+            else:
+                return False
+        else:
+            return False
 
     def find_adjacent_dwarves(self, destination):
         # given target square, return list of adjacent dwarf objects, or false
@@ -144,46 +212,44 @@ class Game(object):
         else:
             return False
 
-    def determine_troll_move_or_attack(self, piece, target):
-        # look at every square within 1 of target, pass list if found, else move
-        attacks = self.find_adjacent_dwarves(target)
-        if attacks:
-            return self.validate_troll_attack(piece, target)
-        else:
-            x, y = target
-            if piece.x - x <= 1 and piece.y - y <= 1:
-                return True
-        return False
-
     def validate_destination(self, destination):
+        x, y = destination
+        if x < 0 or y < 0:
+            return False
         try:
-            destination = self.board[destination[0]][destination[1]]
+            destination = self.board[x][y]
             return True
         except IndexError:
             return False
 
     def validate_move(self, start, destination):
-        piece = self.board[start[0]][start[1]]
+        dest_x, dest_y = destination
+        piece = self.board.get_piece(start[0], start[1])
+        # you can't move an empty square.
+        if not piece:
+            return False
         if self.validate_destination(destination):
-            target = self.board[destination[0]][destination[1]]
+            target = self.board.get_piece(dest_x, dest_y)
+            # is a dwarf attack or invalid, because only dwarves can move on top of another piece
             if isinstance(target, Piece):
-                if isinstance(piece, Dwarf):
+                if isinstance(piece, Dwarf) and isinstance(target, Troll):
                     return self.validate_dwarf_attack(piece, target)
                 # trolls cannot move on top of another piece
                 else:
                     return False
+            # is a move - see the dwarf and troll move rules
             else:
                 target = destination
                 if isinstance(piece, Dwarf):
-                    self.validate_dwarf_move(piece, target)
+                    return self.validate_dwarf_move(piece, target)
                 else:
-                    self.determine_troll_move_or_attack(piece, target)
+                    return self.validate_troll_move_or_attack(piece, target)
         else:
             return False
 
     def remove_captured_piece(self, destination):
         x, y = destination
-        self.board[x][y].piece.capture()
+        self.board.get_piece(x, y)
         self.board[x][y] = (x, y)
         return True
 
@@ -210,6 +276,9 @@ class Piece(object):
         if isinstance(other, self.__class__):
             return True
         return False
+
+    def __getnewargs__(self):
+        return self.x, self.y
 
     def capture(self):
         self.status = 'Captured'
