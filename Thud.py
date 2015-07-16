@@ -2,7 +2,7 @@ __author__ = 'wwagner'
 
 import logging
 import datetime
-import sqlalchemy
+import random
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
@@ -92,7 +92,47 @@ class Board(object):
 class GameManager(object):
     """
     Manages the interaction of players with the game and database
+    Takes data in the format (gametoken, playertoken, start, destination)
     """
+
+    def __init__(self, player_one, player_two):
+        self.game = Game()
+        self.name = ''
+        self.turn = 1
+        self.player_one = player_one
+        self.player_two = player_two
+        self.game_token = self.generate_game_token()
+        self.player_one_token, self.player_two_token = self.generate_player_tokens()
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+    def process_move(self, token):
+        # troll turn
+        if self.turn % 2 > 0 and token == self.player_two_token:
+            # process troll move
+            pass
+        # dwarf turn
+        elif token == self.player_one_token:
+            # process dwarf move
+            pass
+
+    def generate_game_token(self):
+        # ToDo: max_game queries the database for the highest game token played by these two players
+        max_game = 'placeholder'
+        return self.player_one + self.player_two + max_game
+
+    def generate_player_tokens(self):
+        """
+        Used by process move to validate that the correct player is sending the move request
+        """
+        # ToDo: this process should return a two item tuple of randomly generated multi-character keys
+        return (0, 0)
+
+
 
 
 class Game(object):
@@ -103,6 +143,12 @@ class Game(object):
     def __init__(self):
         self.name = ''
         self.board = Board()
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
 
     def validate_clear_path(self, piece, destination):
         logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
