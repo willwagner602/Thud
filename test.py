@@ -2,6 +2,7 @@ __author__ = 'wwagner'
 
 import unittest
 import Thud
+import server
 
 
 class BoardTest(unittest.TestCase):
@@ -74,6 +75,10 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(self.test_board.squares[dest_x][dest_y], test_piece)
         self.assertEqual(self.test_board.squares[start_x][start_y], (str(start_x) + ',' + str(start_y)))
 
+    def test_initalize_unit_list(self):
+        print(self.test_board.units)
+        self.assertEqual(len(self.test_board.units), 40)
+
 
 class GameTest(unittest.TestCase):
 
@@ -97,10 +102,6 @@ class GameTest(unittest.TestCase):
 
     def test_validate_destination_failure_under_min_y(self):
         self.assertFalse(self.test_game.validate_destination((6, -1)))
-
-    def test_validate_dwarf_move_success(self):
-        test_piece = self.test_game.board.get_piece(6, 0)
-        # self.ass
 
     def test_validate_clear_path_success(self):
         test_piece = self.test_game.board.get_piece(1, 4)
@@ -168,35 +169,35 @@ class GameTest(unittest.TestCase):
 
     def test_validate_troll_move_east_success(self):
         test_troll = self.test_game.board[8][6]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (9, 6)))
 
     def test_validate_troll_move_west_success(self):
         test_troll = self.test_game.board[6][8]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (5, 7)))
 
     def test_validate_troll_move_south_success(self):
         test_troll = self.test_game.board[6][8]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (6, 9)))
 
     def test_validate_troll_move_north_success(self):
         test_troll = self.test_game.board[8][6]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (8, 5)))
 
     def test_validate_troll_move_northeast_success(self):
         test_troll = self.test_game.board[8][6]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (9, 6)))
 
     def test_validate_troll_move_southeast_success(self):
         test_troll = self.test_game.board[8][6]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (9, 7)))
 
     def test_validate_troll_move_northwest_success(self):
         test_troll = self.test_game.board[6][8]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (5, 7)))
 
     def test_validate_troll_move_southwest_success(self):
         test_troll = self.test_game.board[6][8]
-        pass
+        self.assertTrue(self.test_game.validate_troll_move_or_attack(test_troll, (5, 8)))
 
     def test_find_adjacent_dwarves_find_three_success(self):
         target_square = (1, 5)
@@ -231,7 +232,7 @@ class GameTest(unittest.TestCase):
     def test_validate__move_troll_on_top_of_troll(self):
         self.assertFalse(self.test_game.validate_move((8, 8), (8, 7)))
 
-    def test_validate_throw_success(self):
+    def test_validate_throw_multiple_squares_success(self):
         test_piece = self.test_game.board.get_piece(6, 6)
         # guard assertion to ensure this really was an empty square before
         self.assertFalse(self.test_game.find_adjacent_dwarves((3, 6)))
@@ -241,16 +242,24 @@ class GameTest(unittest.TestCase):
         self.test_game.board.move_piece(target_piece, 2, 6)
         self.assertEqual(self.test_game.validate_throw(test_piece, (3, 6)), self.test_game.board.get_piece(0, 6))
 
-    def test_validate_throw_failure(self):
+    def test_validate_throw_multiple_squares_failure(self):
         test_piece = self.test_game.board.get_piece(6, 6)
         self.assertFalse(self.test_game.validate_throw(test_piece, (3, 6)))
+
+    def test_validate_throw_single_square_success(self):
+        test_dwarf = self.test_game.board.get_piece(0, 6)
+        # guard assertion to ensure this really was an empty square before
+        self.assertFalse(self.test_game.find_adjacent_dwarves((6, 5)))
+        # move a troll target 2 squares south
+        target_troll = self.test_game.board.get_piece(6, 6)
+        self.test_game.board.move_piece(target_troll, 1, 6)
+        self.assertEqual(self.test_game.validate_dwarf_attack(test_dwarf, (1, 6)), [target_troll])
 
     def test_validate_troll_move_or_attack_failure_through_piece(self):
         test_troll = self.test_game.board.get_piece(8, 7)
         # setup a dwarf to allow a shove
         test_dwarf = self.test_game.board.get_piece(5, 0)
         self.test_game.board.move_piece(test_dwarf, 8, 4)
-        self.test_game.board.print_board()
         self.assertEqual(test_dwarf, self.test_game.board.get_piece(8, 4))
         self.assertFalse(self.test_game.validate_troll_move_or_attack(test_troll, (7, 5)))
 
@@ -258,9 +267,17 @@ class GameTest(unittest.TestCase):
         test_piece = self.test_game.board.get_piece(6, 6)
         self.assertTrue(self.test_game.validate_troll_move_or_attack(test_piece, (6, 5)))
 
-# class PieceTest(unittest.TestCase)
-#     def test_move_piece_success(self):
-#         self.assertTrue(piece.move('valid space'))
-#
-#     def test_move_piece_failure(self):
-#         self.assertFalse(piece.move('invalid space'))
+
+class PieceTest(unittest.TestCase):
+
+    def test_piece_init_location(self):
+        test_piece = Thud.Dwarf(1, 2)
+        self.assertEqual(test_piece.x, 1)
+        self.assertEqual(test_piece.y, 2)
+
+    def test_piece_capture(self):
+        test_piece = Thud.Dwarf(1, 1)
+        self.assertEqual(test_piece.status, 'Alive')
+        test_piece.capture()
+        self.assertEqual(test_piece.status, 'Captured')
+

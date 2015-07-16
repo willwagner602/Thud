@@ -9,10 +9,11 @@ import datetime
 class Board(object):
 
     def __init__(self):
-        self.name = ''
+        self.name = 'Gameboard'
         self.squares = [[str(x) + ',' + str(y) for y in range(15)] for x in range(15)]
         self.populate_invalid_moves()
-        self.populate_units()
+        self.units = self.populate_units()
+        self.moves = []
 
     def __getitem__(self, key):
         return self.squares[key]
@@ -42,6 +43,7 @@ class Board(object):
         self.squares[7][7] = 0
 
     def populate_units(self):
+        units = []
         # add dwarves to edges
         for row in range(len(self.squares)):
             for column in range(len(self.squares[row])):
@@ -51,18 +53,23 @@ class Board(object):
                 # if it's the first or last square in a complete row, add a dwarf
                 elif column in (0, 14):
                     self.squares[row][column] = Dwarf(row, column)
+                    units.append(self.squares[row][column])
                 # if it's the first or last square in a row with blocked squares, add a dwarf
                 elif self.squares[row][column-1] == 0 or self.squares[row][column+1] == 0:
                     self.squares[row][column] = Dwarf(row, column)
+                    units.append(self.squares[row][column])
                 # the final dwarves fill out the top and bottom rows except for the center space
                 elif row in (0, 14) and column in (6, 8):
                     self.squares[row][column] = Dwarf(row, column)
+                    units.append(self.squares[row][column])
 
         # add trolls to center rows and columns around the center stone
         for row in range(6, 9):
             for column in range(6, 9):
                 if self.squares[row][column]:
                     self.squares[row][column] = Troll(row, column)
+                    units.append(self.squares[row][column])
+        return units
 
     def move_piece(self, piece, x, y):
         piece_x = piece.x
@@ -81,7 +88,16 @@ class Board(object):
         self.squares[x][y] = value
 
 
+class GameManager(object):
+    """
+    Manages the interaction of players with the game and database
+    """
+
+
 class Game(object):
+    """
+    Contains all the game logic - moving pieces around the board, capturing and removing pieces.
+    """
 
     def __init__(self):
         self.name = ''
@@ -126,7 +142,8 @@ class Game(object):
 
     def validate_dwarf_attack(self, piece, target):
         if self.validate_throw(piece, target) and self.validate_clear_path(piece, target):
-            return target
+            x, y = target
+            return [self.board.get_piece(x, y),]
 
     def validate_dwarf_move(self, piece, destination):
         x, y = destination
@@ -223,11 +240,11 @@ class Game(object):
             return False
 
     def validate_move(self, start, destination):
-        dest_x, dest_y = destination
         piece = self.board.get_piece(start[0], start[1])
         # you can't move an empty square.
         if not piece:
             return False
+        dest_x, dest_y = destination
         if self.validate_destination(destination):
             target = self.board.get_piece(dest_x, dest_y)
             # is a dwarf attack or invalid, because only dwarves can move on top of another piece
@@ -247,9 +264,10 @@ class Game(object):
         else:
             return False
 
-    def remove_captured_piece(self, destination):
-        x, y = destination
-        self.board.get_piece(x, y)
+    def remove_captured_piece(self, target):
+        x, y = target
+        piece = self.board.get_piece(x, y)
+        piece.capture()
         self.board[x][y] = (x, y)
         return True
 
@@ -301,3 +319,15 @@ class Troll(Piece):
     def __init__(self, start_x, start_y):
         super().__init__(start_x, start_y)
         self.name = 'Troll'
+
+
+class Player(object):
+
+    def __init__(self, name, race):
+        self.name = name
+        if race == 'D':
+            self.race = 'Dwarf'
+        elif race == 'T':
+            self.race = 'Troll'
+        else:
+            raise ValueError('Race of {} is not valid - choose D (Dwarf) or (Troll)'.format(race))
