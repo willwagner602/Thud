@@ -1,9 +1,10 @@
 __author__ = 'wwagner'
 
 import logging
+import datetime
+import sqlalchemy
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
-import datetime
 
 
 class Board(object):
