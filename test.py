@@ -2,7 +2,6 @@ __author__ = 'wwagner'
 
 import unittest
 import Thud
-import server
 
 
 class BoardTest(unittest.TestCase):
@@ -75,9 +74,22 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(self.test_board.squares[dest_x][dest_y], test_piece)
         self.assertEqual(self.test_board.squares[start_x][start_y], (str(start_x) + ',' + str(start_y)))
 
-    def test_initalize_unit_list(self):
+    def test_initialize_unit_list(self):
         print(self.test_board.units)
         self.assertEqual(len(self.test_board.units), 40)
+
+
+class GameManagerTest(unittest.TestCase):
+
+    def setUp(self):
+        self.test_game_manager = Thud.GameManager('will', 'nobody')
+
+    def test_generate_player_token(self):
+        self.assertEqual(len(self.test_game_manager.generate_player_token()), 20)
+
+    def test_init_creates_different_player_tokens(self):
+        self.assertFalse(self.test_game_manager.player_one_token ==
+                         self.test_game_manager.player_two_token)
 
 
 class GameTest(unittest.TestCase):

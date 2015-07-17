@@ -102,7 +102,8 @@ class GameManager(object):
         self.player_one = player_one
         self.player_two = player_two
         self.game_token = self.generate_game_token()
-        self.player_one_token, self.player_two_token = self.generate_player_tokens()
+        self.player_one_token = self.generate_player_token()
+        self.player_two_token = self.generate_player_token()
 
     def __str__(self):
         return self.name
@@ -122,15 +123,17 @@ class GameManager(object):
 
     def generate_game_token(self):
         # ToDo: max_game queries the database for the highest game token played by these two players
-        max_game = 'placeholder'
+        max_game = 1
         return self.player_one + self.player_two + max_game
 
-    def generate_player_tokens(self):
+    def generate_player_token(self):
         """
         Used by process move to validate that the correct player is sending the move request
         """
-        # ToDo: this process should return a two item tuple of randomly generated multi-character keys
-        return (0, 0)
+        token = ''
+        for x in range(20):
+            token += random.choice("""abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*(){};':<>?/.,""")
+        return token
 
 
 
