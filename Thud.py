@@ -3,6 +3,7 @@ __author__ = 'wwagner'
 import logging
 import datetime
 import random
+import string
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
@@ -88,22 +89,23 @@ class Board(object):
     def set_square(self, x, y, value):
         self.squares[x][y] = value
 
+    def capture_piece(self, piece):
+        x, y = piece.x, piece.y
+        piece.capture()
+        self.set_square(x, y, str(x) + ',' + str(y))
+
 
 class GameManager(object):
     """
-    Manages the interaction of players with the game and database
-    Takes data in the format (gametoken, playertoken, start, destination)
+    Manages the interaction of players with games and the database
+
+    Takes moves in the format (gametoken, playertoken, start, destination)
     """
 
-    def __init__(self, player_one, player_two):
-        self.game = Game()
-        self.name = ''
-        self.turn = 1
-        self.player_one = player_one
-        self.player_two = player_two
-        self.game_token = self.generate_game_token()
-        self.player_one_token = self.generate_player_token()
-        self.player_two_token = self.generate_player_token()
+    def __init__(self):
+        logging.debug('Game Manager started at {}.'.format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+        self.name = 'Game Manager'
+        self.active_games = {}
 
     def __str__(self):
         return self.name
@@ -111,31 +113,55 @@ class GameManager(object):
     def __repr__(self):
         return self.name
 
-    def process_move(self, token):
+    def start_game(self, player_one, player_two):
+        """
+        Generates a game token, and individual player tokens for authentication
+        """
+        game = Game(player_one, player_two)
+        game_token = self.generate_game_token(game)
+        game.player_one_token = self.generate_player_token()
+        game.player_two_token = self.generate_player_token()
+        self.active_games[game_token] = game
+        return game_token, game.player_one_token, game.player_two_token
+
+    def process_move(self, game_token, player_token, start_square, destination_square):
+        game = self.active_games[game_token]
         # troll turn
-        if self.turn % 2 > 0 and token == self.player_two_token:
+        if len(game.move_history) % 2 > 0 and player_token == game.player_two_token:
             # process troll move
-            pass
+            return game.validate_move(start_square, destination_square)
         # dwarf turn
-        elif token == self.player_one_token:
-            # process dwarf move
-            pass
+        elif player_token == game.player_one_token:
+            return game.validate_move(start_square, destination_square)
+        else:
+            return False
 
-    def generate_game_token(self):
+    def generate_game_token(self, game):
         # ToDo: max_game queries the database for the highest game token played by these two players
-        max_game = 1
-        return self.player_one + self.player_two + max_game
+        max_game = '1'
+        return game.player_one + game.player_two + max_game
 
-    def generate_player_token(self):
+    def end_game(self, game_token, player_one_token, player_two_token):
+        try:
+            game = self.active_games[game_token]
+            if game.player_one_token == player_one_token and game.player_two_token == player_two_token:
+                # todo:
+                # push game data to database
+                # remove game from the list
+                return True
+        except KeyError:
+            return False
+
+    @staticmethod
+    def generate_player_token():
         """
         Used by process move to validate that the correct player is sending the move request
         """
         token = ''
+        characters = string.ascii_letters + string.digits + string.punctuation
         for x in range(20):
-            token += random.choice("""abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*(){};':<>?/.,""")
+            token += random.choice(characters)
         return token
-
-
 
 
 class Game(object):
@@ -143,15 +169,29 @@ class Game(object):
     Contains all the game logic - moving pieces around the board, capturing and removing pieces.
     """
 
-    def __init__(self):
+    def __init__(self, player_one, player_two):
         self.name = ''
         self.board = Board()
+        self.player_one = player_one
+        self.player_two = player_two
+        self.player_one_token = ''
+        self.player_two_token = ''
+        self.move_history = []
 
     def __str__(self):
         return self.name
 
     def __repr__(self):
         return self.name
+
+    def set_player_token(self, player, token):
+        if player == 1:
+            self.player_one_token = token
+            return True
+        elif player == 2:
+            self.player_two_token = token
+            return True
+        return False
 
     def validate_clear_path(self, piece, destination):
         logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
@@ -290,8 +330,8 @@ class Game(object):
             return False
 
     def validate_move(self, start, destination):
-        piece = self.board.get_piece(start[0], start[1])
-        # you can't move an empty square.
+        x, y = start
+        piece = self.board.get_piece(x, y)
         if not piece:
             return False
         dest_x, dest_y = destination
@@ -321,6 +361,16 @@ class Game(object):
         self.board[x][y] = (x, y)
         return True
 
+    def move(self, piece, destination):
+        move = self.validate_move(piece, destination)
+        if type(move) == 'list':
+            for target in move:
+                self.board.capture_piece(target)
+        elif move:
+            piece.move(destination)
+        else:
+            return False
+
 
 class Piece(object):
 
@@ -328,7 +378,7 @@ class Piece(object):
         self.name = 'Piece'
         self.x = start_x
         self.y = start_y
-        self.moves = [[self.x, self.y], ]
+        self.moves = [(self.x, self.y), ]
         self.status = 'Alive'
 
     def __str__(self):
@@ -351,10 +401,9 @@ class Piece(object):
     def capture(self):
         self.status = 'Captured'
 
-    def move(self, x, y):
-        self.x = x
-        self.y = y
-        self.moves.append([x, y])
+    def move(self, square):
+        self.x, self.y = square
+        self.moves.append(square)
 
 
 class Dwarf(Piece):

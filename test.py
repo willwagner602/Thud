@@ -75,27 +75,41 @@ class BoardTest(unittest.TestCase):
         self.assertEqual(self.test_board.squares[start_x][start_y], (str(start_x) + ',' + str(start_y)))
 
     def test_initialize_unit_list(self):
-        print(self.test_board.units)
         self.assertEqual(len(self.test_board.units), 40)
+
+    def test_capture_piece(self):
+        test_troll = self.test_board.get_piece(6, 6)
+        self.test_board.capture_piece(test_troll)
+        self.assertFalse(self.test_board.get_piece(6, 6))
+        self.assertEqual(self.test_board.squares[6][6], '6,6')
 
 
 class GameManagerTest(unittest.TestCase):
 
     def setUp(self):
-        self.test_game_manager = Thud.GameManager('will', 'nobody')
+        self.test_game_manager = Thud.GameManager()
+        self.game_token, self.player_one_token, self.player_two_token = self.test_game_manager.start_game(
+            'test_one', 'test_two')
 
     def test_generate_player_token(self):
         self.assertEqual(len(self.test_game_manager.generate_player_token()), 20)
 
     def test_init_creates_different_player_tokens(self):
-        self.assertFalse(self.test_game_manager.player_one_token ==
-                         self.test_game_manager.player_two_token)
+        player_one_token = self.test_game_manager.generate_player_token()
+        player_two_token = self.test_game_manager.generate_player_token()
+        self.assertTrue(player_one_token != player_two_token)
+
+    def test_process_move(self):
+        self.assertTrue(self.test_game_manager.process_move(self.game_token, self.player_one_token, (5, 0), (5, 1)))
+
+    def test_process_move_failure_troll_moves_first(self):
+        self.assertFalse(self.test_game_manager.process_move(self.game_token, self.player_two_token, (6, 6), (5, 5)))
 
 
 class GameTest(unittest.TestCase):
 
     def setUp(self):
-        self.test_game = Thud.Game()
+        self.test_game = Thud.Game('test_one', 'test_two')
 
     def test_validate_destination_success(self):
         self.assertTrue(self.test_game.validate_destination((6, 4)))
@@ -278,6 +292,14 @@ class GameTest(unittest.TestCase):
     def test_validate_troll_move_or_attack_success_move(self):
         test_piece = self.test_game.board.get_piece(6, 6)
         self.assertTrue(self.test_game.validate_troll_move_or_attack(test_piece, (6, 5)))
+
+    def test_move_troll_success(self):
+        test_troll = self.test_game.board.get_piece(6, 6)
+        self.test_game.move(test_troll, (5, 5))
+
+    def test_move_dwarf_success(self):
+        test_dwarf = self.test_game.board.get_piece(5, 0)
+        self.test_game.move(test_dwarf, (5, 14))
 
 
 class PieceTest(unittest.TestCase):
