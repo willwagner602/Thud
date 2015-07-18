@@ -70,7 +70,7 @@ class BoardTest(unittest.TestCase):
         dest_x = 4
         dest_y = 7
         test_piece = self.test_board.squares[start_x][start_y]
-        self.test_board.move_piece(test_piece, 4, 7)
+        self.test_board.move_piece_on_board(test_piece, 4, 7)
         self.assertEqual(self.test_board.squares[dest_x][dest_y], test_piece)
         self.assertEqual(self.test_board.squares[start_x][start_y], (str(start_x) + ',' + str(start_y)))
 
@@ -83,6 +83,11 @@ class BoardTest(unittest.TestCase):
         self.assertFalse(self.test_board.get_piece(6, 6))
         self.assertEqual(self.test_board.squares[6][6], '6,6')
 
+    def test_move_piece_on_board(self):
+        test_dwarf = self.test_board.get_piece(5, 0)
+        self.test_board.move_piece_on_board(test_dwarf, 5, 1)
+        self.assertEqual(self.test_board.get_piece(5, 1), test_dwarf)
+
 
 class GameManagerTest(unittest.TestCase):
 
@@ -91,19 +96,17 @@ class GameManagerTest(unittest.TestCase):
         self.game_token, self.player_one_token, self.player_two_token = self.test_game_manager.start_game(
             'test_one', 'test_two')
 
-    def test_generate_player_token(self):
-        self.assertEqual(len(self.test_game_manager.generate_player_token()), 20)
+    def test_execute_move(self):
+        self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_one_token, (5, 0), (5, 1)))
 
-    def test_init_creates_different_player_tokens(self):
-        player_one_token = self.test_game_manager.generate_player_token()
-        player_two_token = self.test_game_manager.generate_player_token()
-        self.assertTrue(player_one_token != player_two_token)
+    def test_execute_move_failure_troll_moves_first(self):
+        self.assertFalse(self.test_game_manager.execute_move(self.game_token, self.player_two_token, (6, 6), (5, 5)))
 
-    def test_process_move(self):
-        self.assertTrue(self.test_game_manager.process_move(self.game_token, self.player_one_token, (5, 0), (5, 1)))
-
-    def test_process_move_failure_troll_moves_first(self):
-        self.assertFalse(self.test_game_manager.process_move(self.game_token, self.player_two_token, (6, 6), (5, 5)))
+    def test_execute_move_success_first_three_turns(self):
+        self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_one_token, (5, 0), (5, 1)))
+        self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_two_token, (6, 6), (5, 5)))
+        game = self.test_game_manager.active_games[self.game_token]
+        self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_one_token, (5, 1), (5, 2)))
 
 
 class GameTest(unittest.TestCase):
@@ -239,7 +242,7 @@ class GameTest(unittest.TestCase):
     def test_validate_troll_move_or_attack_is_attack(self):
         test_troll = self.test_game.board[6][6]
         # need to manually move troll so that move is valid
-        self.test_game.board.move_piece(test_troll, 2, 7)
+        self.test_game.board.move_piece_on_board(test_troll, 2, 7)
         target_dwarves = [self.test_game.board.get_piece(0, 5), self.test_game.board.get_piece(1, 4),
                           self.test_game.board.get_piece(0, 6)]
         destination = (1, 5)
@@ -265,7 +268,7 @@ class GameTest(unittest.TestCase):
         # move a dwarf so that the attack check passes
         target_piece = self.test_game.board.get_piece(0, 6)
         self.assertIsInstance(self.test_game.board.get_piece(0, 6), Thud.Dwarf)
-        self.test_game.board.move_piece(target_piece, 2, 6)
+        self.test_game.board.move_piece_on_board(target_piece, 2, 6)
         self.assertEqual(self.test_game.validate_throw(test_piece, (3, 6)), self.test_game.board.get_piece(0, 6))
 
     def test_validate_throw_multiple_squares_failure(self):
@@ -278,14 +281,14 @@ class GameTest(unittest.TestCase):
         self.assertFalse(self.test_game.find_adjacent_dwarves((6, 5)))
         # move a troll target 2 squares south
         target_troll = self.test_game.board.get_piece(6, 6)
-        self.test_game.board.move_piece(target_troll, 1, 6)
+        self.test_game.board.move_piece_on_board(target_troll, 1, 6)
         self.assertEqual(self.test_game.validate_dwarf_attack(test_dwarf, (1, 6)), [target_troll])
 
     def test_validate_troll_move_or_attack_failure_through_piece(self):
         test_troll = self.test_game.board.get_piece(8, 7)
         # setup a dwarf to allow a shove
         test_dwarf = self.test_game.board.get_piece(5, 0)
-        self.test_game.board.move_piece(test_dwarf, 8, 4)
+        self.test_game.board.move_piece_on_board(test_dwarf, 8, 4)
         self.assertEqual(test_dwarf, self.test_game.board.get_piece(8, 4))
         self.assertFalse(self.test_game.validate_troll_move_or_attack(test_troll, (7, 5)))
 
@@ -294,12 +297,52 @@ class GameTest(unittest.TestCase):
         self.assertTrue(self.test_game.validate_troll_move_or_attack(test_piece, (6, 5)))
 
     def test_move_troll_success(self):
-        test_troll = self.test_game.board.get_piece(6, 6)
-        self.test_game.move(test_troll, (5, 5))
+        self.test_game.execute_move(self.test_game.player_one_token, (6, 6), (5, 5))
 
     def test_move_dwarf_success(self):
+        self.test_game.execute_move(self.test_game.player_one_token, (5,0), (5, 14))
+
+    def test_store_move(self):
+        start = (1, 1)
+        destination = (2, 2)
+        self.test_game.store_move(start, destination)
+        self.assertEqual(self.test_game.move_history, [(start, destination)])
+
+    def test_store_multiple_moves(self):
+        start = (8, 8)
+        move_one = (9, 9)
+        move_two = (9, 10)
+        destination = (10, 10)
+        self.test_game.store_move(start, move_one)
+        self.test_game.store_move(move_one, move_two)
+        self.test_game.store_move(move_two, destination)
+        self.assertEqual(self.test_game.move_history, [(start, move_one),
+                                                       (move_one, move_two), (move_two, destination)])
+
+    def test_generate_player_token(self):
+        self.test_game.generate_player_token()
+        self.assertEqual(len(self.test_game.player_one_token), 20)
+        self.assertEqual(len(self.test_game.player_two_token), 20)
+
+    def test_init_creates_different_player_tokens(self):
+        self.assertTrue(self.test_game.player_one_token != self.test_game.player_two_token)
+
+    def test_validate_player(self):
+        player_one = self.test_game.player_one_token
+        player_two = self.test_game.player_two_token
+        self.assertTrue(self.test_game.validate_player(player_one))
+        # make a dummy move to advance to the bottom of the turn
+        self.test_game.store_move(1, 1)
+        self.assertTrue(self.test_game.validate_player(player_two))
+
+    def test_validate_player_failure_troll_moves_first(self):
+        player_two = self.test_game.player_two_token
+        self.assertFalse(self.test_game.validate_player(player_two))
+
+    def test_move_success(self):
         test_dwarf = self.test_game.board.get_piece(5, 0)
-        self.test_game.move(test_dwarf, (5, 14))
+        self.test_game.move(test_dwarf, (5, 1))
+        self.assertEqual(self.test_game.board.get_piece(5, 1), test_dwarf)
 
 
 class PieceTest(unittest.TestCase):

@@ -73,7 +73,7 @@ class Board(object):
                     units.append(self.squares[row][column])
         return units
 
-    def move_piece(self, piece, x, y):
+    def move_piece_on_board(self, piece, x, y):
         piece_x = piece.x
         piece_y = piece.y
         self.squares[x][y] = piece
@@ -98,7 +98,6 @@ class Board(object):
 class GameManager(object):
     """
     Manages the interaction of players with games and the database
-
     Takes moves in the format (gametoken, playertoken, start, destination)
     """
 
@@ -119,22 +118,8 @@ class GameManager(object):
         """
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
-        game.player_one_token = self.generate_player_token()
-        game.player_two_token = self.generate_player_token()
         self.active_games[game_token] = game
         return game_token, game.player_one_token, game.player_two_token
-
-    def process_move(self, game_token, player_token, start_square, destination_square):
-        game = self.active_games[game_token]
-        # troll turn
-        if len(game.move_history) % 2 > 0 and player_token == game.player_two_token:
-            # process troll move
-            return game.validate_move(start_square, destination_square)
-        # dwarf turn
-        elif player_token == game.player_one_token:
-            return game.validate_move(start_square, destination_square)
-        else:
-            return False
 
     def generate_game_token(self, game):
         # ToDo: max_game queries the database for the highest game token played by these two players
@@ -152,6 +137,38 @@ class GameManager(object):
         except KeyError:
             return False
 
+    def execute_move(self,game_token, player_token, start, destination):
+        game = self.active_games[game_token]
+        return game.execute_move(player_token, start, destination)
+
+class Game(object):
+    """
+    Contains all the game logic - moving pieces around the board, capturing and removing pieces.
+    """
+
+    def __init__(self, player_one, player_two):
+        self.name = ''
+        self.board = Board()
+        # ToDo: Initialize players as a dict holding the player names with their tokens. Use tokens to call names
+        # players = {}
+        self.player_one = player_one
+        self.player_two = player_two
+        self.player_one_token = self.generate_player_token()
+        self.player_two_token = self.generate_player_token()
+        self.move_history = []
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+    def report_turn(self):
+        return
+
+    def store_move(self, start, destination):
+        self.move_history.append((start, destination))
+
     @staticmethod
     def generate_player_token():
         """
@@ -163,33 +180,13 @@ class GameManager(object):
             token += random.choice(characters)
         return token
 
-
-class Game(object):
-    """
-    Contains all the game logic - moving pieces around the board, capturing and removing pieces.
-    """
-
-    def __init__(self, player_one, player_two):
-        self.name = ''
-        self.board = Board()
-        self.player_one = player_one
-        self.player_two = player_two
-        self.player_one_token = ''
-        self.player_two_token = ''
-        self.move_history = []
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
-
-    def set_player_token(self, player, token):
-        if player == 1:
-            self.player_one_token = token
+    def validate_player(self, player_token):
+        player_one_turn = (len(self.move_history) + 1) % 2 > 0
+        if player_one_turn and player_token == self.player_one_token:
+            logging.debug("{}: Validated Dwarf move.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
             return True
-        elif player == 2:
-            self.player_two_token = token
+        elif not player_one_turn and player_token == self.player_two_token:
+            logging.debug("{}: Validated Troll move.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
             return True
         return False
 
@@ -277,6 +274,13 @@ class Game(object):
         return True
 
     def validate_troll_move_or_attack(self, piece, target):
+        """
+        Differentiates between troll moves and attacks, returns a list of dwarves if it's an attack,
+        True for a move, and False for an invalid move.
+        :param piece:
+        :param target:
+        :return list | bool:
+        """
         attacks = self.find_adjacent_dwarves(target)
         x, y = target
         single_space_move = (abs(piece.x - x) <= 1 and abs(piece.y - y) <= 1)
@@ -298,6 +302,13 @@ class Game(object):
             return False
 
     def find_adjacent_dwarves(self, destination):
+        """
+        Determines whether a square has neighboring dwarves, and thus is a viable
+        attack target for a troll.  Returns False if no dwarves found, or a list
+        of dwarves to attack if they are found.
+        :param destination:
+        :return list | bool:
+        """
         # given target square, return list of adjacent dwarf objects, or false
         dest_x, dest_y = destination
         check_squares = []
@@ -320,6 +331,11 @@ class Game(object):
             return False
 
     def validate_destination(self, destination):
+        """
+        Ensures a move is on the board
+        :param destination:
+        :return bool:
+        """
         x, y = destination
         if x < 0 or y < 0:
             return False
@@ -330,20 +346,26 @@ class Game(object):
             return False
 
     def validate_move(self, start, destination):
+
         x, y = start
         piece = self.board.get_piece(x, y)
         if not piece:
             return False
+
         dest_x, dest_y = destination
+
         if self.validate_destination(destination):
             target = self.board.get_piece(dest_x, dest_y)
+
             # is a dwarf attack or invalid, because only dwarves can move on top of another piece
             if isinstance(target, Piece):
                 if isinstance(piece, Dwarf) and isinstance(target, Troll):
-                    return self.validate_dwarf_attack(piece, target)
+                    dwarf_attack = self.validate_dwarf_attack(piece, target)
+                    return dwarf_attack
                 # trolls cannot move on top of another piece
                 else:
                     return False
+
             # is a move - see the dwarf and troll move rules
             else:
                 target = destination
@@ -355,21 +377,33 @@ class Game(object):
             return False
 
     def remove_captured_piece(self, target):
-        x, y = target
-        piece = self.board.get_piece(x, y)
-        piece.capture()
+        x, y = target.x, target.y
+        target.capture()
         self.board[x][y] = (x, y)
         return True
 
+    def execute_move(self, player_token, start, destination):
+        x, y = start
+        piece = self.board.get_piece(x, y)
+        if piece and self.validate_player(player_token):
+            move = self.validate_move(start, destination)
+            if type(move) == 'list':
+                for target in move:
+                    self.board.capture_piece(target)
+                self.move(piece, destination)
+                return move
+            elif move:
+                self.move(piece, destination)
+                return True
+            else:
+                return False
+        return False
+
     def move(self, piece, destination):
-        move = self.validate_move(piece, destination)
-        if type(move) == 'list':
-            for target in move:
-                self.board.capture_piece(target)
-        elif move:
-            piece.move(destination)
-        else:
-            return False
+        x, y = destination
+        self.store_move((piece.x, piece.y), destination)
+        self.board.move_piece_on_board(piece, x, y)
+        piece.move(destination)
 
 
 class Piece(object):
