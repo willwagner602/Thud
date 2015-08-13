@@ -358,3 +358,10 @@ class PieceTest(unittest.TestCase):
         test_piece.capture()
         self.assertEqual(test_piece.status, 'Captured')
 
+
+class ServerTest(unittest.TestCase):
+
+    def test_start_game_success(self):
+
+
+    def test_start_game_failure(self):

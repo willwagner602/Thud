@@ -163,16 +163,19 @@ class Game(object):
     def __repr__(self):
         return self.name
 
-    def report_turn(self):
-        return
-
     def store_move(self, start, destination):
+        """
+
+        :param start:
+        :param destination:
+        :return:
+        """
         self.move_history.append((start, destination))
 
     @staticmethod
     def generate_player_token():
         """
-        Used by process move to validate that the correct player is sending the move request
+        Generates a 20 character token used for identifying players
         """
         token = ''
         characters = string.ascii_letters + string.digits + string.punctuation
@@ -181,6 +184,12 @@ class Game(object):
         return token
 
     def validate_player(self, player_token):
+        """
+        Used to ensure the correct player is making a move - returns False for players moving out of order
+        :param player_token:
+        :return bool:
+        """
+        # Dwarf player starts turn 1, players alternate for rest of game
         player_one_turn = (len(self.move_history) + 1) % 2 > 0
         if player_one_turn and player_token == self.player_one_token:
             logging.debug("{}: Validated Dwarf move.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
@@ -191,6 +200,13 @@ class Game(object):
         return False
 
     def validate_clear_path(self, piece, destination):
+        """
+        Checks all spaces between the piece and destination square to ensure there are not intervening
+        pieces or impassable spaces.
+        :param piece:
+        :param destination:
+        :return bool:
+        """
         logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, piece.x, piece.y, str(destination)))
         if isinstance(destination, Troll):
@@ -228,11 +244,24 @@ class Game(object):
         return True
 
     def validate_dwarf_attack(self, piece, target):
+        """
+        Used to pass back the target of a dwarf attack.
+        :param piece:
+        :param target:
+        :return list:
+        """
         if self.validate_throw(piece, target) and self.validate_clear_path(piece, target):
             x, y = target
-            return [self.board.get_piece(x, y),]
+            return [self.board.get_piece(x, y), ]
+        return False
 
     def validate_dwarf_move(self, piece, destination):
+        """
+        Used to check that a Dwarf move is not blocked by the Thud stone or another creature
+        :param piece:
+        :param destination:
+        :return bool:
+        """
         x, y = destination
         if abs(piece.x - x) == abs(piece.y - y) or piece.x == x or piece.y == y:
             return self.validate_clear_path(piece, destination)
@@ -240,6 +269,13 @@ class Game(object):
             return False
 
     def validate_throw(self, piece, target):
+        """
+        Used for checking both Dwarf throws and Troll shoves, confirms that enough allied pieces
+        are in a line to allow the throw/shove.
+        :param piece:
+        :param target:
+        :return bool:
+        """
         # calculate inverse target square to check for line of creatures
         if isinstance(target, Piece):
             x = target.x
@@ -332,7 +368,7 @@ class Game(object):
 
     def validate_destination(self, destination):
         """
-        Ensures a move is on the board
+        Ensures a the destination for a move is on the board
         :param destination:
         :return bool:
         """
@@ -346,6 +382,14 @@ class Game(object):
             return False
 
     def validate_move(self, start, destination):
+        """
+        The highest level function for checking the validity of a move.
+        Returns False if the destination isn't valid, or passes back the
+        values returned by the move/attack checking functions.
+        :param start:
+        :param destination:
+        :return list | bool:
+        """
 
         x, y = start
         piece = self.board.get_piece(x, y)
