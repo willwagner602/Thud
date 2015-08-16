@@ -13,9 +13,10 @@ class Board(object):
     def __init__(self):
         self.name = 'Gameboard'
         self.squares = [[str(x) + ',' + str(y) for y in range(15)] for x in range(15)]
+        self.moves = []
+        self.piece_id = 0
         self.populate_invalid_moves()
         self.units = self.populate_units()
-        self.moves = []
 
     def __getitem__(self, key):
         return self.squares[key]
@@ -23,24 +24,28 @@ class Board(object):
     def __setitem__(self, key, value):
         self.squares[key] = value
 
+    def generate_piece_id(self):
+        self.piece_id += 1
+        return self.piece_id
+
     def print_board(self):
         for row in zip(*self.squares[::1]):
             print(row)
 
     def populate_invalid_moves(self):
         invalid_flag = 0
-        # fill triangles at 4 corners of board
-        for x in range(15):
-            if x < 5:
-                row_squares = range(5-x, 10+x)
-                for y in range(15):
-                    if y not in row_squares:
-                        self.squares[x][y] = invalid_flag
-            elif x > 9:
-                row_squares = range((1+x-10), 24-x)
-                for y in range(15):
-                    if y not in row_squares:
-                        self.squares[x][y] = invalid_flag
+        # fill 5x5 equilateral triangles at 4 corners of board
+        for y in range(15):
+            if y < 5:
+                row_squares = range(5-y, 10+y)
+                for x in range(15):
+                    if x not in row_squares:
+                        self.squares[y][x] = invalid_flag
+            elif y > 9:
+                row_squares = range((1+y-10), 24-y)
+                for x in range(15):
+                    if x not in row_squares:
+                        self.squares[y][x] = invalid_flag
         # Place center stone
         self.squares[7][7] = 0
 
@@ -54,22 +59,22 @@ class Board(object):
                     pass
                 # if it's the first or last square in a complete row, add a dwarf
                 elif column in (0, 14):
-                    self.squares[row][column] = Dwarf(row, column)
+                    self.squares[row][column] = Dwarf(row, column, self.generate_piece_id())
                     units.append(self.squares[row][column])
                 # if it's the first or last square in a row with blocked squares, add a dwarf
                 elif self.squares[row][column-1] == 0 or self.squares[row][column+1] == 0:
-                    self.squares[row][column] = Dwarf(row, column)
+                    self.squares[row][column] = Dwarf(row, column, self.generate_piece_id())
                     units.append(self.squares[row][column])
                 # the final dwarves fill out the top and bottom rows except for the center space
                 elif row in (0, 14) and column in (6, 8):
-                    self.squares[row][column] = Dwarf(row, column)
+                    self.squares[row][column] = Dwarf(row, column, self.generate_piece_id())
                     units.append(self.squares[row][column])
 
         # add trolls to center rows and columns around the center stone
         for row in range(6, 9):
             for column in range(6, 9):
                 if self.squares[row][column]:
-                    self.squares[row][column] = Troll(row, column)
+                    self.squares[row][column] = Troll(row, column, self.generate_piece_id())
                     units.append(self.squares[row][column])
         return units
 
@@ -137,9 +142,25 @@ class GameManager(object):
         except KeyError:
             return False
 
-    def execute_move(self,game_token, player_token, start, destination):
+    def execute_move(self, game_token, player_token, start, destination):
         game = self.active_games[game_token]
         return game.execute_move(player_token, start, destination)
+
+    def report_game_state(self, game_id):
+        """
+        Returns a json representation of the current game state
+        """
+        board_state = []
+        for row in self.active_games[game_id].board:
+            row_state = []
+            for square in row:
+                if isinstance(square, Piece):
+                    row_state.append(square.id)
+                else:
+                    row_state.append(square)
+            board_state += row_state
+            print(board_state)
+
 
 class Game(object):
     """
@@ -165,7 +186,7 @@ class Game(object):
 
     def store_move(self, start, destination):
         """
-
+        Save a move to the move history
         :param start:
         :param destination:
         :return:
@@ -231,6 +252,7 @@ class Game(object):
             x_travel = [piece.x for x in range(0, len(y_travel))]
         if not y_travel:
             logging.debug("Vertical move calculated along y == {}".format(piece.y))
+            # ToDo: figure out if this is necessary as a list comprehension
             y_travel = [piece.y for x in range(0, len(x_travel))]
         # move is only 1 square, is already validated by earlier functions
         if not x_travel and not y_travel:
@@ -452,12 +474,13 @@ class Game(object):
 
 class Piece(object):
 
-    def __init__(self, start_x, start_y):
+    def __init__(self, start_x, start_y, piece_id):
         self.name = 'Piece'
         self.x = start_x
         self.y = start_y
         self.moves = [(self.x, self.y), ]
         self.status = 'Alive'
+        self.id = piece_id
 
     def __str__(self):
         return self.name
@@ -486,15 +509,15 @@ class Piece(object):
 
 class Dwarf(Piece):
 
-    def __init__(self, start_x, start_y):
-        super().__init__(start_x, start_y)
+    def __init__(self, start_x, start_y, piece_id):
+        super().__init__(start_x, start_y, piece_id)
         self.name = 'Dwarf'
 
 
 class Troll(Piece):
 
-    def __init__(self, start_x, start_y):
-        super().__init__(start_x, start_y)
+    def __init__(self, start_x, start_y, piece_id):
+        super().__init__(start_x, start_y, piece_id)
         self.name = 'Troll'
 
 

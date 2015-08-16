@@ -88,6 +88,11 @@ class BoardTest(unittest.TestCase):
         self.test_board.move_piece_on_board(test_dwarf, 5, 1)
         self.assertEqual(self.test_board.get_piece(5, 1), test_dwarf)
 
+    def test_generate_piece_id(self):
+        self.assertEqual(self.test_board.generate_piece_id(), 41)
+        self.assertEqual(self.test_board.generate_piece_id(), 42)
+        self.assertEqual(self.test_board.generate_piece_id(), 43)
+
 
 class GameManagerTest(unittest.TestCase):
 
@@ -107,6 +112,9 @@ class GameManagerTest(unittest.TestCase):
         self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_two_token, (6, 6), (5, 5)))
         game = self.test_game_manager.active_games[self.game_token]
         self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_one_token, (5, 1), (5, 2)))
+
+    def test_report_game_state(self):
+        self.test_game_manager.report_game_state(self.game_token)
 
 
 class GameTest(unittest.TestCase):
@@ -348,12 +356,12 @@ class GameTest(unittest.TestCase):
 class PieceTest(unittest.TestCase):
 
     def test_piece_init_location(self):
-        test_piece = Thud.Dwarf(1, 2)
+        test_piece = Thud.Dwarf(1, 2, 1)
         self.assertEqual(test_piece.x, 1)
         self.assertEqual(test_piece.y, 2)
 
     def test_piece_capture(self):
-        test_piece = Thud.Dwarf(1, 1)
+        test_piece = Thud.Dwarf(1, 1, 1)
         self.assertEqual(test_piece.status, 'Alive')
         test_piece.capture()
         self.assertEqual(test_piece.status, 'Captured')
@@ -362,6 +370,7 @@ class PieceTest(unittest.TestCase):
 class ServerTest(unittest.TestCase):
 
     def test_start_game_success(self):
-
+        pass
 
     def test_start_game_failure(self):
+        pass
