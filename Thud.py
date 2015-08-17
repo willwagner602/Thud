@@ -4,6 +4,7 @@ import logging
 import datetime
 import random
 import string
+import json
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
@@ -135,9 +136,7 @@ class GameManager(object):
         try:
             game = self.active_games[game_token]
             if game.player_one_token == player_one_token and game.player_two_token == player_two_token:
-                # todo:
-                # push game data to database
-                # remove game from the list
+                # todo: push game data to database, remove game from the list
                 return True
         except KeyError:
             return False
@@ -150,16 +149,53 @@ class GameManager(object):
         """
         Returns a json representation of the current game state
         """
-        board_state = []
-        for row in self.active_games[game_id].board:
+        board_state = {}
+        for x, column in enumerate(self.active_games[game_id].board):
             row_state = []
-            for square in row:
+            for square in column:
                 if isinstance(square, Piece):
-                    row_state.append(square.id)
+                    row_state.append({"id": square.id, "type": square.name})
+                elif square == 0:
+                    row_state.append({"id": "null", "type": "null"})
                 else:
-                    row_state.append(square)
-            board_state += row_state
-            print(board_state)
+                    row_state.append({"id": "null", "type": "open"})
+            board_state[str(x)] = row_state
+        return json.dumps(board_state)
+
+    def process_input(self, json_object):
+        """
+        Takes json and determines whether the player is starting a game or playing
+        and existing game, takes input from the player and passes it along for validation.
+        Correct format for start is:
+            {"game": "begin",
+             "player": "null",
+             "start": "null",
+             "destination": "null",
+             "player_one": "Will",
+             "player_two": "Tom"}}
+        Otherwise just making a move:
+            {"game": "correct_game_token",
+            "player":"correct_player_token",
+            "start": [x, y],
+            "destination": [x, y]}
+        """
+        try:
+            data = json.loads(json_object)
+            game = data["game"]
+            player = data["player"]
+            start = ""
+            destination = data["destination"]
+            if game == "begin":
+                player_one = data["player_one"]
+                player_two = data["player_two"]
+                game, player_one_token, player_two_token = self.start_game(player_one, player_two)
+                return json.dumps({game: self.report_game_state(game)})
+            elif game in self.active_games:
+                return self.execute_move(game, player, start, destination)
+            else:
+                return False
+        except KeyError:
+            return json.dumps("Bad JSON data.")
 
 
 class Game(object):

@@ -2,6 +2,7 @@ __author__ = 'wwagner'
 
 import unittest
 import Thud
+import json
 
 
 class BoardTest(unittest.TestCase):
@@ -101,6 +102,11 @@ class GameManagerTest(unittest.TestCase):
         self.game_token, self.player_one_token, self.player_two_token = self.test_game_manager.start_game(
             'test_one', 'test_two')
 
+    def check_json_array_helper(self, live_json_data, raw_test_data, test_object):
+        raw_test_data = json.loads(raw_test_data)[test_object]
+        for row in live_json_data:
+            self.assertEqual(live_json_data[row], raw_test_data[row])
+
     def test_execute_move(self):
         self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_one_token, (5, 0), (5, 1)))
 
@@ -114,7 +120,38 @@ class GameManagerTest(unittest.TestCase):
         self.assertTrue(self.test_game_manager.execute_move(self.game_token, self.player_one_token, (5, 1), (5, 2)))
 
     def test_report_game_state(self):
-        self.test_game_manager.report_game_state(self.game_token)
+        test_data = open("api_test.json").read()
+        live_data = json.loads(self.test_game_manager.report_game_state(self.game_token))
+        self.check_json_array_helper(live_data, test_data, "base state")
+
+    def test_process_input_start_game(self):
+        test_start = json.dumps({"game": "begin",
+                                 "player": "null",
+                                 "start": "null",
+                                 "destination": "null",
+                                 "player_one": "Will",
+                                 "player_two": "Tom"})
+        self.test_game_manager.process_input(test_start)
+        pass
+
+    def test_process_move(self):
+        test_move = {"game": self.game_token, "player": self.player_one_token, "start": [6, 6], "destination": [5, 6]}
+        # self.assertEqual()
+        pass
+
+    def test_process_input_failure_bad_game_token(self):
+        test_malformed = json.dumps({"game": "badtoken", "player": "badtoken", "start": [1, 1], "destination": [1, 2]})
+        self.assertFalse(self.test_game_manager.process_input(test_malformed))
+
+    def test_process_input_failure_missing_attributes(self):
+        test_malformed = json.dumps({"player": "badtoken", "start": [1, 1], "destination": [1, 2]})
+        self.assertEqual(self.test_game_manager.process_input(test_malformed), json.dumps("Bad JSON data."))
+
+    def test_modified_game_state(self):
+        test_move = json.dumps({"start": [6, 6], "destination": [5, 6]})
+        live_data = json.loads
+        pass
+
 
 
 class GameTest(unittest.TestCase):
