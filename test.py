@@ -30,7 +30,7 @@ class BoardTest(unittest.TestCase):
         for coordinates in dwarf_positions:
             row = coordinates[0]
             column = coordinates[1]
-            self.assertEqual(self.test_board.squares[row][column].name, 'Dwarf')
+            self.assertEqual(self.test_board.squares[row][column].type, 'Dwarf')
 
         # Arrayed identically to board
         troll_positions = [(6, 8), (7, 8), (8, 8),
@@ -39,7 +39,7 @@ class BoardTest(unittest.TestCase):
         for coordinates in troll_positions:
             row = coordinates[0]
             column = coordinates[1]
-            self.assertEqual(self.test_board.squares[row][column].name, 'Troll')
+            self.assertEqual(self.test_board.squares[row][column].type, 'Troll')
 
     def test_getitem(self):
         self.assertEqual(self.test_board[7][7], 0)
@@ -102,7 +102,7 @@ class GameManagerTest(unittest.TestCase):
         self.game_token, self.player_one_token, self.player_two_token = self.test_game_manager.start_game(
             'test_one', 'test_two')
 
-    def check_json_array_helper(self, live_json_data, raw_test_data, test_object):
+    def check_json_data_helper(self, live_json_data, raw_test_data, test_object):
         raw_test_data = json.loads(raw_test_data)[test_object]
         for row in live_json_data:
             self.assertEqual(live_json_data[row], raw_test_data[row])
@@ -122,7 +122,7 @@ class GameManagerTest(unittest.TestCase):
     def test_report_game_state(self):
         test_data = open("api_test.json").read()
         live_data = json.loads(self.test_game_manager.report_game_state(self.game_token))
-        self.check_json_array_helper(live_data, test_data, "base state")
+        self.check_json_data_helper(live_data, test_data, "base state")
 
     def test_process_input_start_game(self):
         test_start = json.dumps({"game": "begin",
@@ -131,13 +131,23 @@ class GameManagerTest(unittest.TestCase):
                                  "destination": "null",
                                  "player_one": "Will",
                                  "player_two": "Tom"})
-        self.test_game_manager.process_input(test_start)
-        pass
+        data = json.loads(self.test_game_manager.process_input(test_start))
+        game = data["game"]
+        player_one = data["player_one"]
+        player_two = data["player_two"]
+        self.assertTrue(data)
+        self.assertTrue(player_one)
+        self.assertTrue(player_two)
 
-    def test_process_move(self):
-        test_move = {"game": self.game_token, "player": self.player_one_token, "start": [6, 6], "destination": [5, 6]}
-        # self.assertEqual()
-        pass
+    def test_process_input_failure_dwarf_player_moves_troll(self):
+        test_move = json.dumps({"game": self.game_token, "player": self.player_one_token,
+                                "start": [6, 6], "destination": [5, 6]})
+        self.assertFalse(json.loads(self.test_game_manager.process_input(test_move)))
+
+    def test_process_input_success_dwarf_first_move(self):
+        test_move = json.dumps({"game": self.game_token, "player": self.player_one_token,
+                                "start": [5, 0], "destination": [5, 13]})
+        self.assertTrue(json.loads(self.test_game_manager.process_input(test_move)))
 
     def test_process_input_failure_bad_game_token(self):
         test_malformed = json.dumps({"game": "badtoken", "player": "badtoken", "start": [1, 1], "destination": [1, 2]})
@@ -147,11 +157,37 @@ class GameManagerTest(unittest.TestCase):
         test_malformed = json.dumps({"player": "badtoken", "start": [1, 1], "destination": [1, 2]})
         self.assertEqual(self.test_game_manager.process_input(test_malformed), json.dumps("Bad JSON data."))
 
-    def test_modified_game_state(self):
-        test_move = json.dumps({"start": [6, 6], "destination": [5, 6]})
-        live_data = json.loads
+    def test_process_input_success_troll_group_attack(self):
+        # move a troll near a group of dwarves, manually override attributes because it's an illegal move
+        test_board = self.test_game_manager.active_games[self.game_token].board
+        test_board.move_piece_on_board(test_board.get_piece(6, 6), 6, 2)
+        test_board.get_piece(6, 2).move((6, 2))
+        # throw away dwarf move to advance to troll turn
+        throwaway_move = json.dumps({"game": self.game_token, "player": self.player_one_token,
+                                     "start": [9, 0], "destination": [9, 13]})
+        self.assertTrue(json.loads(self.test_game_manager.process_input(throwaway_move)))
+        # capture the dwarves with the troll
+        # ToDo: Test that the correct list of pieces to capture is returned
+        test_move = json.dumps({"game": self.game_token, "player": self.player_two_token,
+                                "start": [6, 2], "destination": [5, 1]})
+        expected_captures = []
+        print(json.loads(self.test_game_manager.process_input(test_move)))
+        # self.assertEqual(json.loads(self.test_game_manager.process_input(test_move)), [])
+
+    def test_process_input_success_dwarf_attack(self):
+        # move some dwarves to toss at a troll
+        # capture the troll with a dwarf
+        # ToDo: Test that the correct piece to capture is returned
         pass
 
+    def test_modified_game_state(self):
+        test_move = json.dumps({"game": self.game_token, "player": self.player_one_token,
+                                "start": [6, 6], "destination": [5, 6]})
+        test_data = open("api_test.json").read()
+        # guard test to ensure we successfully made the move
+        self.assertTrue(self.test_game_manager.process_input(test_move))
+        live_data = json.loads(self.test_game_manager.report_game_state(self.game_token))
+        self.check_json_data_helper(live_data, test_data, "first move")
 
 
 class GameTest(unittest.TestCase):
@@ -342,10 +378,10 @@ class GameTest(unittest.TestCase):
         self.assertTrue(self.test_game.validate_troll_move_or_attack(test_piece, (6, 5)))
 
     def test_move_troll_success(self):
-        self.test_game.execute_move(self.test_game.player_one_token, (6, 6), (5, 5))
+        self.test_game.execute_move(self.test_game.player_one.token, (6, 6), (5, 5))
 
     def test_move_dwarf_success(self):
-        self.test_game.execute_move(self.test_game.player_one_token, (5,0), (5, 14))
+        self.test_game.execute_move(self.test_game.player_one.token, (5,0), (5, 14))
 
     def test_store_move(self):
         start = (1, 1)
@@ -366,23 +402,26 @@ class GameTest(unittest.TestCase):
 
     def test_generate_player_token(self):
         self.test_game.generate_player_token()
-        self.assertEqual(len(self.test_game.player_one_token), 20)
-        self.assertEqual(len(self.test_game.player_two_token), 20)
+        self.assertEqual(len(self.test_game.player_one.token), 20)
+        self.assertEqual(len(self.test_game.player_two.token), 20)
 
     def test_init_creates_different_player_tokens(self):
-        self.assertTrue(self.test_game.player_one_token != self.test_game.player_two_token)
+        self.assertTrue(self.test_game.player_one.token != self.test_game.player_two.token)
 
     def test_validate_player(self):
-        player_one = self.test_game.player_one_token
-        player_two = self.test_game.player_two_token
-        self.assertTrue(self.test_game.validate_player(player_one))
+        player_one = self.test_game.player_one.token
+        player_two = self.test_game.player_two.token
+        piece_one = self.test_game.board.get_piece(5, 0)
+        self.assertTrue(self.test_game.validate_player(player_one, piece_one))
         # make a dummy move to advance to the bottom of the turn
         self.test_game.store_move(1, 1)
-        self.assertTrue(self.test_game.validate_player(player_two))
+        piece_two = self.test_game.board.get_piece(6, 6)
+        self.assertTrue(self.test_game.validate_player(player_two, piece_two))
 
     def test_validate_player_failure_troll_moves_first(self):
-        player_two = self.test_game.player_two_token
-        self.assertFalse(self.test_game.validate_player(player_two))
+        player_two = self.test_game.player_two.token
+        piece = self.test_game.board.get_piece(6, 6)
+        self.assertFalse(self.test_game.validate_player(player_two, piece))
 
     def test_move_success(self):
         test_dwarf = self.test_game.board.get_piece(5, 0)

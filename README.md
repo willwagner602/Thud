@@ -29,3 +29,23 @@ the lead creature up to four spaces.  There is no minimum distance for a Toss/Sh
 Toss, the lead Dwarf must land on the space occupied by a target troll.  Trolls are larger, and don't fly through the
 air easily, so they simply Shove their compatriots towards the Dwarves.  A Troll must land in an empty space at the end
 of a shove.
+
+# Thud Gameserver API
+
+This backend is run on a gameserver at *Not Hosted Yet - Message Will if Interested*
+
+To make API calls, you need to pass the following JSON objects:
+
+Start game:
+    {"game": "begin",
+     "player": "null",
+     "start": "null",
+     "destination": "null",
+     "player_one": "Will",
+     "player_two": "Tom"}
+
+Making a move:
+    {"game": "correct_game_token",
+    "player":"correct_player_token",
+    "start": [x, y],
+    "destination": [x, y]}

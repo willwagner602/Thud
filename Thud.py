@@ -31,7 +31,18 @@ class Board(object):
 
     def print_board(self):
         for row in zip(*self.squares[::1]):
-            print(row)
+            row_text = ""
+            for square in row:
+                if isinstance(square, Piece):
+                    text = square.type
+                    buffer = "  "
+                    row_text += buffer + text + buffer
+                elif square == 0:
+                    row_text += "    *    "
+                else:
+                    buffer = int((9 - len(square))/2) * " "
+                    row_text += buffer + square + str((9 - len(buffer+square)) * " ")
+            print(row_text)
 
     def populate_invalid_moves(self):
         invalid_flag = 0
@@ -125,18 +136,18 @@ class GameManager(object):
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
         self.active_games[game_token] = game
-        return game_token, game.player_one_token, game.player_two_token
+        return game_token, game.player_one.token, game.player_two.token
 
     def generate_game_token(self, game):
         # ToDo: max_game queries the database for the highest game token played by these two players
         max_game = '1'
-        return game.player_one + game.player_two + max_game
+        return game.player_one.name + game.player_two.name + max_game
 
     def end_game(self, game_token, player_one_token, player_two_token):
         try:
             game = self.active_games[game_token]
-            if game.player_one_token == player_one_token and game.player_two_token == player_two_token:
-                # todo: push game data to database, remove game from the list
+            if game.player_one.token == player_one_token and game.player_two.token == self.player_two_token:
+                # todo: push game data to database, remove game from the list of active games
                 return True
         except KeyError:
             return False
@@ -154,7 +165,7 @@ class GameManager(object):
             row_state = []
             for square in column:
                 if isinstance(square, Piece):
-                    row_state.append({"id": square.id, "type": square.name})
+                    row_state.append({"id": square.id, "type": square.type})
                 elif square == 0:
                     row_state.append({"id": "null", "type": "null"})
                 else:
@@ -164,16 +175,17 @@ class GameManager(object):
 
     def process_input(self, json_object):
         """
-        Takes json and determines whether the player is starting a game or playing
-        and existing game, takes input from the player and passes it along for validation.
-        Correct format for start is:
+        Takes json input and passes it to the rest of the program.  This function is the
+        external API manager.
+        Start game:
             {"game": "begin",
              "player": "null",
              "start": "null",
              "destination": "null",
              "player_one": "Will",
-             "player_two": "Tom"}}
-        Otherwise just making a move:
+             "player_two": "Tom"}
+
+        Making a move:
             {"game": "correct_game_token",
             "player":"correct_player_token",
             "start": [x, y],
@@ -183,15 +195,16 @@ class GameManager(object):
             data = json.loads(json_object)
             game = data["game"]
             player = data["player"]
-            start = ""
+            start = data["start"]
             destination = data["destination"]
             if game == "begin":
                 player_one = data["player_one"]
                 player_two = data["player_two"]
                 game, player_one_token, player_two_token = self.start_game(player_one, player_two)
-                return json.dumps({game: self.report_game_state(game)})
+                return json.dumps({"game": game, game: self.report_game_state(game),
+                                   "player_one": player_one_token, "player_two": player_two_token})
             elif game in self.active_games:
-                return self.execute_move(game, player, start, destination)
+                return json.dumps(self.execute_move(game, player, start, destination))
             else:
                 return False
         except KeyError:
@@ -206,12 +219,8 @@ class Game(object):
     def __init__(self, player_one, player_two):
         self.name = ''
         self.board = Board()
-        # ToDo: Initialize players as a dict holding the player names with their tokens. Use tokens to call names
-        # players = {}
-        self.player_one = player_one
-        self.player_two = player_two
-        self.player_one_token = self.generate_player_token()
-        self.player_two_token = self.generate_player_token()
+        self.player_one = Player(player_one, self.generate_player_token(), "D")
+        self.player_two = Player(player_two, self.generate_player_token(), "T")
         self.move_history = []
 
     def __str__(self):
@@ -240,7 +249,7 @@ class Game(object):
             token += random.choice(characters)
         return token
 
-    def validate_player(self, player_token):
+    def validate_player(self, player_token, piece):
         """
         Used to ensure the correct player is making a move - returns False for players moving out of order
         :param player_token:
@@ -248,12 +257,20 @@ class Game(object):
         """
         # Dwarf player starts turn 1, players alternate for rest of game
         player_one_turn = (len(self.move_history) + 1) % 2 > 0
-        if player_one_turn and player_token == self.player_one_token:
-            logging.debug("{}: Validated Dwarf move.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
-            return True
-        elif not player_one_turn and player_token == self.player_two_token:
-            logging.debug("{}: Validated Troll move.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
-            return True
+        if player_one_turn and player_token == self.player_one.token:
+            logging.debug("{}: Validated Dwarf player.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+            if self.player_one.race == piece.type:
+                return True
+            else:
+                logging.debug("{}: Dwarf player attempted to move Troll.".format(
+                    datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+        elif not player_one_turn and player_token == self.player_two.token:
+            logging.debug("{}: Validated Troll player.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+            if self.player_two.race == piece.type:
+                return True
+            else:
+                logging.debug("{}: Troll player attempted to move Dwarf.".format(
+                    datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
         return False
 
     def validate_clear_path(self, piece, destination):
@@ -360,6 +377,7 @@ class Game(object):
         if not y_check:
             y_check = [piece.y for x in range(0, len(y_check))]
 
+        # ToDo: Make sure this correctly logs the squares checked on a throw
         check_squares = list(zip(x_check, y_check))
         logging.debug('Checking squares {} for toss.'.format(', '.join(map(str, check_squares))))
         for x, y in check_squares:
@@ -487,19 +505,24 @@ class Game(object):
     def execute_move(self, player_token, start, destination):
         x, y = start
         piece = self.board.get_piece(x, y)
-        if piece and self.validate_player(player_token):
+        if piece and self.validate_player(player_token, piece):
             move = self.validate_move(start, destination)
-            if type(move) == 'list':
+            if isinstance(move, list):
                 for target in move:
                     self.board.capture_piece(target)
                 self.move(piece, destination)
-                return move
+                logging.debug("Captured pieces at {}".format(', '.join([piece.type for piece in move])))
+                return [(piece.x, piece.y) for piece in move]
             elif move:
+                logging.debug("Valid move - moving {} at {}, {} to {}".format(
+                    piece.type, piece.x, piece.y, destination))
                 self.move(piece, destination)
+
                 return True
             else:
                 return False
-        return False
+        else:
+            return False
 
     def move(self, piece, destination):
         x, y = destination
@@ -511,7 +534,7 @@ class Game(object):
 class Piece(object):
 
     def __init__(self, start_x, start_y, piece_id):
-        self.name = 'Piece'
+        self.type = 'Piece'
         self.x = start_x
         self.y = start_y
         self.moves = [(self.x, self.y), ]
@@ -519,10 +542,10 @@ class Piece(object):
         self.id = piece_id
 
     def __str__(self):
-        return self.name
+        return self.type
 
     def __repr__(self):
-        return self.name
+        return self.type
 
     def __bool__(self):
         return True
@@ -547,20 +570,21 @@ class Dwarf(Piece):
 
     def __init__(self, start_x, start_y, piece_id):
         super().__init__(start_x, start_y, piece_id)
-        self.name = 'Dwarf'
+        self.type = 'Dwarf'
 
 
 class Troll(Piece):
 
     def __init__(self, start_x, start_y, piece_id):
         super().__init__(start_x, start_y, piece_id)
-        self.name = 'Troll'
+        self.type = 'Troll'
 
 
 class Player(object):
 
-    def __init__(self, name, race):
+    def __init__(self, name, player_id, race):
         self.name = name
+        self.token = player_id
         if race == 'D':
             self.race = 'Dwarf'
         elif race == 'T':
