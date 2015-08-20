@@ -38,11 +38,19 @@ class StartGameWithPlayers(BaseHandler):
         self.write(tornado.escape.json_encode(response))
 
 
-class ValidateMove(BaseHandler):
+class ExecuteMove(BaseHandler):
     def post(self):
         move_data = tornado.escape.json_decode(self.request.body)
         response = game_manager.process_move(move_data)
         self.write(tornado.escape.json_encode(response))
+
+
+class ValidateMove(BaseHandler):
+    def post(self):
+        move_data = tornado.escape.json_decode(self.request.body)
+        response = game_manager.process_move(move_data, test=True)
+        self.write(tornado.escape.json_encode(response))
+
 
 class EndGame(BaseHandler):
     def post(self):
@@ -66,7 +74,8 @@ if __name__ == '__main__':
         (r"/getgamebyid/([0-9]+)", GetGameByIdHandler),
         (r"/version", VersionHandler),
         (r"/start", StartGameWithPlayers),
-        (r"/move", ValidateMove)
+        (r"/move", ExecuteMove),
+        (r"/move/validate", ValidateMove),
     ])
 
     application.listen(PORT)

@@ -213,11 +213,24 @@ class GameManagerTest(unittest.TestCase):
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((10, 13), (8, 13))))
         self.assertFalse(self.test_game_manager.process_move(self.troll_move_helper((6, 6), (6, 1))))
 
+    def test_process_move_test_move(self):
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((6, 0), (6, 5)), test=True))
+        self.assertEqual(self.test_game_manager.active_games[self.game_token].move_history, [])
+
+    def test_process_move_test_attack(self):
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((6, 0), (6, 4))))
+        moves = self.test_game_manager.active_games[self.game_token].move_history
+        self.assertEqual(self.test_game_manager.process_move(self.troll_move_helper((6, 6), (6, 5)), test=True),
+                         [self.test_game_manager.active_games[self.game_token].board.get_piece(6, 4)])
+        self.assertEqual(self.test_game_manager.active_games[self.game_token].move_history, moves)
+
 
 class GameTest(unittest.TestCase):
 
     def setUp(self):
         self.test_game = Thud.Game('test_one', 'test_two')
+        self.player_one = self.test_game.player_one.token
+        self.player_two = self.test_game.player_two.token
 
     def test_validate_destination_success(self):
         self.assertTrue(self.test_game.validate_destination((6, 4)))
@@ -349,17 +362,15 @@ class GameTest(unittest.TestCase):
         self.assertEqual(self.test_game.find_adjacent_dwarves(target_square), target_dwarves)
 
     def test_validate_troll_move_or_attack_success_attack(self):
-        player_one = self.test_game.player_one.token
-        player_two = self.test_game.player_two.token
         # move troll and dwarves together to allow attack
-        self.test_game.execute_move(player_one, (3, 2), (3, 3))
-        self.test_game.execute_move(player_two, (6, 6), (5, 5))
-        self.test_game.execute_move(player_one, (1, 4), (2, 4))
-        self.test_game.execute_move(player_one, (3, 2), (3, 3))
-        self.test_game.execute_move(player_two, (5, 5), (4, 5))
-        self.test_game.execute_move(player_one, (0, 5), (2, 5))
+        self.test_game.execute_move(self.player_one, (3, 2), (3, 3))
+        self.test_game.execute_move(self.player_two, (6, 6), (5, 5))
+        self.test_game.execute_move(self.player_one, (1, 4), (2, 4))
+        self.test_game.execute_move(self.player_one, (3, 2), (3, 3))
+        self.test_game.execute_move(self.player_two, (5, 5), (4, 5))
+        self.test_game.execute_move(self.player_one, (0, 5), (2, 5))
         target_dwarves = [(3, 3), (2, 3), (2, 4), (2, 5)]
-        response = self.test_game.execute_move(player_two, (4, 5), (3, 4))
+        response = self.test_game.execute_move(self.player_two, (4, 5), (3, 4))
         for square in target_dwarves:
             self.assertTrue(square in response)
 
@@ -459,21 +470,21 @@ class GameTest(unittest.TestCase):
         self.assertTrue(self.test_game.validate_troll_move_or_attack(test_piece, (6, 5)))
 
     def test_move_troll_success(self):
-        self.test_game.execute_move(self.test_game.player_one.token, (6, 6), (5, 5))
+        self.test_game.execute_move(self.player_one, (6, 6), (5, 5))
 
     def test_move_dwarf_success(self):
-        self.test_game.execute_move(self.test_game.player_one.token, (5,0), (5, 14))
+        self.test_game.execute_move(self.player_one, (5,0), (5, 14))
 
     def test_execute_move(self):
-        self.assertTrue(self.test_game.execute_move(self.test_game.player_one.token, (5, 0), (5, 1)))
+        self.assertTrue(self.test_game.execute_move(self.player_one, (5, 0), (5, 1)))
 
     def test_execute_move_failure_troll_moves_first(self):
-        self.assertFalse(self.test_game.execute_move(self.test_game.player_two.token, (6, 6), (5, 5)))
+        self.assertFalse(self.test_game.execute_move(self.player_two, (6, 6), (5, 5)))
 
     def test_execute_move_success_first_three_turns(self):
-        self.assertTrue(self.test_game.execute_move(self.test_game.player_one.token, (5, 0), (5, 1)))
-        self.assertTrue(self.test_game.execute_move(self.test_game.player_two.token, (6, 6), (5, 5)))
-        self.assertTrue(self.test_game.execute_move(self.test_game.player_one.token, (5, 1), (5, 2)))
+        self.assertTrue(self.test_game.execute_move(self.player_one, (5, 0), (5, 1)))
+        self.assertTrue(self.test_game.execute_move(self.player_two, (6, 6), (5, 5)))
+        self.assertTrue(self.test_game.execute_move(self.player_one, (5, 1), (5, 2)))
 
     def test_store_move(self):
         start = (1, 1)
@@ -498,22 +509,19 @@ class GameTest(unittest.TestCase):
         self.assertEqual(len(self.test_game.player_two.token), 20)
 
     def test_init_creates_different_player_tokens(self):
-        self.assertTrue(self.test_game.player_one.token != self.test_game.player_two.token)
+        self.assertTrue(self.player_one != self.player_two)
 
     def test_validate_player(self):
-        player_one = self.test_game.player_one.token
-        player_two = self.test_game.player_two.token
         piece_one = self.test_game.board.get_piece(5, 0)
-        self.assertTrue(self.test_game.validate_player(player_one, piece_one))
+        self.assertTrue(self.test_game.validate_player(self.player_one, piece_one))
         # make a dummy move to advance to the bottom of the turn
         self.test_game.store_move(1, 1)
         piece_two = self.test_game.board.get_piece(6, 6)
-        self.assertTrue(self.test_game.validate_player(player_two, piece_two))
+        self.assertTrue(self.test_game.validate_player(self.player_two, piece_two))
 
     def test_validate_player_failure_troll_moves_first(self):
-        player_two = self.test_game.player_two.token
         piece = self.test_game.board.get_piece(6, 6)
-        self.assertFalse(self.test_game.validate_player(player_two, piece))
+        self.assertFalse(self.test_game.validate_player(self.player_two, piece))
 
     def test_move_success(self):
         test_dwarf = self.test_game.board.get_piece(5, 0)
@@ -521,8 +529,18 @@ class GameTest(unittest.TestCase):
         self.assertEqual(self.test_game.board.get_piece(5, 1), test_dwarf)
 
     def test_move_failure_to_center(self):
-        self.test_game.execute_move(self.test_game.player_one.token, (0, 6), (4, 6))
-        self.assertFalse(self.test_game.execute_move(self.test_game.player_two.token, (6, 6), (7, 7)))
+        self.test_game.execute_move(self.player_one, (0, 6), (4, 6))
+        self.assertFalse(self.test_game.execute_move(self.player_two, (6, 6), (7, 7)))
+
+    def test_execute_move_test_move(self):
+        self.test_game.execute_move(self.player_one, (6, 0), (6, 1), test=True)
+        self.assertEqual(self.test_game.move_history, [])
+
+    def test_execute_move_test_attack(self):
+        self.test_game.execute_move(self.player_one, (5, 0), (5, 4))
+        moves = self.test_game.move_history
+        self.assertEqual(self.test_game.execute_move(self.player_two, (6, 6), (5, 5)), [(5, 4)])
+        self.assertEqual(self.test_game.move_history, moves)
 
 
 class PieceTest(unittest.TestCase):
@@ -556,4 +574,8 @@ class ServerTest(unittest.TestCase):
 
     def test_simulate_game(self):
         # simulate a series of valid and invalid moves and attacks
+        pass
+
+    def test_validate_move(self):
+        # test simulated moves for checking moves/captures to display in the UI
         pass

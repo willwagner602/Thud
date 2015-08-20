@@ -177,7 +177,7 @@ class GameManager(object):
             board_state[str(x)] = row_state
         return board_state
 
-    def process_move(self, move_data):
+    def process_move(self, move_data, test=False):
         """
         Making a move:
             {"game": "correct_game_token",
@@ -195,7 +195,7 @@ class GameManager(object):
                 logging.debug("{}: Game {} found, attempting move from {} to {}.".format(
                     game_token, datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), start, destination))
                 game = self.active_games[game_token]
-                return game.execute_move(player_token, start, destination)
+                return game.execute_move(player_token, start, destination, test)
             else:
                 logging.debug("{}: Game {} not found.".format(game_token,
                                                               datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
@@ -526,23 +526,27 @@ class Game(object):
         self.board[x][y] = (x, y)
         return True
 
-    def execute_move(self, player_token, start, destination):
+    def execute_move(self, player_token, start, destination, test=False):
         x, y = start
         piece = self.board.get_piece(x, y)
         if piece and self.validate_player(player_token, piece):
             move = self.validate_move(start, destination)
-            if isinstance(move, list):
+            if isinstance(move, list) and not test:
                 for target in move:
                     self.board.capture_piece(target)
                 self.move(piece, destination)
                 logging.debug("Captured pieces at {}".format(', '.join([piece.type for piece in move])))
                 return [(piece.x, piece.y) for piece in move]
-            elif move:
+            elif move and not test:
                 logging.debug("Valid move - moving {} at {}, {} to {}".format(
                     piece.type, piece.x, piece.y, destination))
                 self.move(piece, destination)
-
                 return True
+            elif move and test:
+                if isinstance(move, list):
+                    return move
+                else:
+                    return True
             else:
                 dest_x, dest_y = destination
                 logging.debug("{}: Invalid move from {}, {} to {}, {}".format(

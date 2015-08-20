@@ -42,7 +42,16 @@ Start game:
 
      This returns
 
-To validate a move, POST "/move" with the following JSON data in the body:
+To execute a move, POST "/move" with the following JSON data in the body:
+Making a move:
+    {"game": "correct_game_token",
+    "player":"correct_player_token",
+    "start": [x, y],
+    "destination": [x, y]}
+
+    This returns
+
+To validate a move, POST "/move/validate" with the following JSON data in the body:
 Making a move:
     {"game": "correct_game_token",
     "player":"correct_player_token",
