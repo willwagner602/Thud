@@ -34,13 +34,19 @@ of a shove.
 
 This backend is run on a gameserver at *Not Hosted Yet*.
 
+To start a game, POST "/start" with the following JSON data in the body:
 Start game:
     {"game": "begin",
      "player_one": "Will",
      "player_two": "Tom"}
 
+     This returns
+
+To validate a move, POST "/move" with the following JSON data in the body:
 Making a move:
     {"game": "correct_game_token",
     "player":"correct_player_token",
     "start": [x, y],
     "destination": [x, y]}
+
+    This returns

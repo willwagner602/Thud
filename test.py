@@ -3,7 +3,7 @@ __author__ = 'wwagner'
 import unittest
 import Thud
 import json
-import thud_server
+import ThudServer
 
 
 class BoardTest(unittest.TestCase):
@@ -548,7 +548,7 @@ class PieceTest(unittest.TestCase):
 class ServerTest(unittest.TestCase):
 
     def setUp(self):
-        self.test_server = thud_server
+        self.test_server = ThudServer
 
     def test_start_game(self):
         # start the game by hitting the endpoint with an appropriate websocket

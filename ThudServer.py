@@ -8,7 +8,6 @@ import logging
 import Thud
 
 logging.basicConfig(filename='ThudSocketServer.log', level=logging.DEBUG)
-PORT = 12000
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -50,7 +49,10 @@ class EndGame(BaseHandler):
         response = game_manager.process_end(end_data)
         self.write(tornado.escape.json_encode(response))
 
-if __name__ == "__main__":
+
+def runserver(port=80):
+
+    PORT = port
 
     game_manager = Thud.GameManager()
 
