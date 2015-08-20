@@ -60,11 +60,9 @@ class EndGame(BaseHandler):
 
 
 if __name__ == '__main__':
-
-    PORT = sys.argv[1]
     try:
-        PORT = int(PORT)
-    except TypeError:
+        PORT = int(sys.argv[1])
+    except (TypeError, IndexError):
         PORT = 80
     print(PORT)
 
