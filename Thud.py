@@ -4,7 +4,6 @@ import logging
 import datetime
 import random
 import string
-import json
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
@@ -95,6 +94,7 @@ class Board(object):
         piece_y = piece.y
         self.squares[x][y] = piece
         self.squares[piece_x][piece_y] = str(piece_x) + ',' + str(piece_y)
+        return True
 
     def get_piece(self, x, y):
         tenant = self.squares[x][y]
@@ -136,25 +136,29 @@ class GameManager(object):
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
         self.active_games[game_token] = game
+        logging.debug("{}: Game {} start with players {}, {}".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), game_token, game.player_one.token,
+            game.player_two.token))
         return game_token, game.player_one.token, game.player_two.token
 
-    def generate_game_token(self, game):
-        # ToDo: max_game queries the database for the highest game token played by these two players
-        max_game = '1'
-        return game.player_one.name + game.player_two.name + max_game
+    def generate_game_token(self, game, max_game=1):
+        # ToDo: query the database along with active_games for the highest game token played by these two players
+        token = game.player_one.name + game.player_two.name + str(max_game)
+        try:
+            existing_game = self.active_games[token]
+            max_game += 1
+            return self.generate_game_token(game, max_game)
+        except KeyError:
+            return token
 
     def end_game(self, game_token, player_one_token, player_two_token):
         try:
             game = self.active_games[game_token]
-            if game.player_one.token == player_one_token and game.player_two.token == self.player_two_token:
+            if game.player_one.token == player_one_token and game.player_two.token == player_two_token:
                 # todo: push game data to database, remove game from the list of active games
                 return True
         except KeyError:
             return False
-
-    def execute_move(self, game_token, player_token, start, destination):
-        game = self.active_games[game_token]
-        return game.execute_move(player_token, start, destination)
 
     def report_game_state(self, game_id):
         """
@@ -171,44 +175,43 @@ class GameManager(object):
                 else:
                     row_state.append({"id": "null", "type": "open"})
             board_state[str(x)] = row_state
-        return json.dumps(board_state)
+        return board_state
 
-    def process_input(self, json_object):
+    def process_move(self, move_data):
         """
-        Takes json input and passes it to the rest of the program.  This function is the
-        external API manager.
-        Start game:
-            {"game": "begin",
-             "player": "null",
-             "start": "null",
-             "destination": "null",
-             "player_one": "Will",
-             "player_two": "Tom"}
-
         Making a move:
             {"game": "correct_game_token",
             "player":"correct_player_token",
             "start": [x, y],
             "destination": [x, y]}
+        Returns True, False, or [(x, y), ] of captures for an attack
         """
         try:
-            data = json.loads(json_object)
-            game = data["game"]
-            player = data["player"]
-            start = data["start"]
-            destination = data["destination"]
-            if game == "begin":
-                player_one = data["player_one"]
-                player_two = data["player_two"]
-                game, player_one_token, player_two_token = self.start_game(player_one, player_two)
-                return json.dumps({"game": game, game: self.report_game_state(game),
-                                   "player_one": player_one_token, "player_two": player_two_token})
-            elif game in self.active_games:
-                return json.dumps(self.execute_move(game, player, start, destination))
+            game_token = move_data["game"]
+            player_token = move_data["player"]
+            start = move_data["start"]
+            destination = move_data["destination"]
+            if game_token in self.active_games:
+                logging.debug("{}: Game {} found, attempting move from {} to {}.".format(
+                    game_token, datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), start, destination))
+                game = self.active_games[game_token]
+                return game.execute_move(player_token, start, destination)
             else:
+                logging.debug("{}: Game {} not found.".format(game_token,
+                                                              datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
                 return False
+        except KeyError as e:
+            return "Bad JSON data {} as part of {}.".format(e, move_data)
+
+    def process_start(self, start_data):
+        try:
+            player_one = start_data["player_one"]
+            player_two = start_data["player_two"]
+            game, player_one_token, player_two_token = self.start_game(player_one, player_two)
+            return {"game": game, "board": self.report_game_state(game),
+                    "player_one": player_one_token, "player_two": player_two_token}
         except KeyError:
-            return json.dumps("Bad JSON data.")
+            return "Bad JSON data."
 
 
 class Game(object):
@@ -284,7 +287,7 @@ class Game(object):
         logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, piece.x, piece.y, str(destination)))
         if isinstance(destination, Troll):
-            destination_x, destination_y = destination
+            destination_x, destination_y = destination.x, destination.y
         else:
             destination_x, destination_y = destination
 
@@ -312,7 +315,7 @@ class Game(object):
             return True
 
         travel_squares = list(zip(x_travel, y_travel))
-        logging.debug('Checking squares {}'.format(', '.join(map(str, travel_squares))))
+        logging.debug('Checking squares in path {}'.format(', '.join(map(str, travel_squares))))
         for x, y in travel_squares:
             if isinstance(self.board[x][y], Piece) or not self.board[x][y]:
                 return False
@@ -326,9 +329,11 @@ class Game(object):
         :return list:
         """
         if self.validate_throw(piece, target) and self.validate_clear_path(piece, target):
-            x, y = target
+            x, y = target.x, target.y
             return [self.board.get_piece(x, y), ]
-        return False
+        else:
+            logging.debug("Error: not a valid dwarf attack  {}, {} to {}, {}".format(piece.x, piece.y, target.x, target.y))
+            return False
 
     def validate_dwarf_move(self, piece, destination):
         """
@@ -341,6 +346,7 @@ class Game(object):
         if abs(piece.x - x) == abs(piece.y - y) or piece.x == x or piece.y == y:
             return self.validate_clear_path(piece, destination)
         else:
+            logging.debug("Error: not a valid dwarf move from {}, {} to {}, {}".format(piece.x, piece.y, x, y))
             return False
 
     def validate_throw(self, piece, target):
@@ -357,31 +363,37 @@ class Game(object):
             y = target.y
         else:
             x, y = target
-        inverse_x = piece.x - x
-        inverse_y = piece.y - y
+        delta_x = piece.x - x
+        delta_y = piece.y - y
 
-        logging.debug("{}: Checking valid attack at {},{}.".format(
+        logging.info("{}: Checking valid attack at {},{}.".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), x, y))
 
-        if piece.x - inverse_x > 0:
-            x_check = list(range(piece.x - 1, inverse_x, -1))
+        if delta_x > 0:
+            x_check = list(range(piece.x + 1, piece.x + delta_x, 1))
         else:
-            x_check = list(range(piece.x + 1, inverse_x))
-        if piece.y - inverse_y > 0:
-            y_check = list(range(piece.y - 1, inverse_y, -1))
+            x_check = list(range(piece.x - 1, piece.x + delta_x, -1))
+
+        if delta_y > 0:
+            y_check = list(range(piece.y + 1, piece.y + delta_y, 1))
         else:
-            y_check = list(range(piece.y + 1, inverse_y))
+            y_check = list(range(piece.y - 1, piece.y + delta_y, -1))
 
         if not x_check:
-            x_check = [piece.x for x in range(0, len(x_check))]
+            x_check = [piece.x for x in range(0, len(y_check))]
         if not y_check:
-            y_check = [piece.y for x in range(0, len(y_check))]
+            y_check = [piece.y for x in range(0, len(x_check))]
 
-        # ToDo: Make sure this correctly logs the squares checked on a throw
         check_squares = list(zip(x_check, y_check))
-        logging.debug('Checking squares {} for toss.'.format(', '.join(map(str, check_squares))))
+
+        logging.debug("Delta x: {}, Delta y: {}, List of x to check: {}, List of y to check: {}".format(
+            delta_x, delta_y, x_check, y_check
+        ))
+
+        logging.debug('Checking squares {} for friendly units to toss.'.format(', '.join(map(str, check_squares))))
         for x, y in check_squares:
-            if not isinstance(self.board.get_piece(x, y), Piece):
+            if not isinstance(self.board.get_piece(x, y), type(piece)):
+                logging.debug("Error not enough friendly pieces in line for throw.")
                 return False
         return True
 
@@ -396,7 +408,7 @@ class Game(object):
         attacks = self.find_adjacent_dwarves(target)
         x, y = target
         single_space_move = (abs(piece.x - x) <= 1 and abs(piece.y - y) <= 1)
-        logging.debug("{}: Validating troll move or attack at {},{} Single Space Move: {}".format(
+        logging.debug("{}: Validating troll move or attack at {},{}. Single Space Move is {}".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece.x, piece.y, single_space_move))
         if attacks and single_space_move:
             logging.debug("Checking single space attack at {},{} against {}.".format(x, y, ','.join(map(str, attacks))))
@@ -453,7 +465,10 @@ class Game(object):
             return False
         try:
             destination = self.board[x][y]
-            return True
+            if destination == 0:
+                return False
+            else:
+                return True
         except IndexError:
             return False
 
@@ -476,10 +491,15 @@ class Game(object):
 
         if self.validate_destination(destination):
             target = self.board.get_piece(dest_x, dest_y)
+            logging.debug("{}: Validated {} at {}, {} destination of {}, {}.".format(
+                datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, x, y, dest_x, dest_y
+            ))
 
             # is a dwarf attack or invalid, because only dwarves can move on top of another piece
             if isinstance(target, Piece):
                 if isinstance(piece, Dwarf) and isinstance(target, Troll):
+                    logging.debug("Validated dwarf attack with piece {} at {}, {} destination of {}, {}.".format(
+                                                                                           piece, x, y, dest_x, dest_y))
                     dwarf_attack = self.validate_dwarf_attack(piece, target)
                     return dwarf_attack
                 # trolls cannot move on top of another piece
@@ -490,8 +510,12 @@ class Game(object):
             else:
                 target = destination
                 if isinstance(piece, Dwarf):
+                    logging.debug("Validated moving {} at {}, {} destination of {}, {}.".format(piece, x, y,
+                                                                                                  dest_x, dest_y))
                     return self.validate_dwarf_move(piece, target)
-                else:
+                elif isinstance(piece, Troll):
+                    logging.debug("Validated moving {} at {}, {} destination of {}, {}.".format(piece, x, y,
+                                                                                                  dest_x, dest_y))
                     return self.validate_troll_move_or_attack(piece, target)
         else:
             return False
@@ -520,8 +544,17 @@ class Game(object):
 
                 return True
             else:
+                dest_x, dest_y = destination
+                logging.debug("{}: Invalid move from {}, {} to {}, {}".format(
+                    datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), x, y, dest_x, dest_y))
                 return False
+        elif not piece:
+            logging.debug("{}: Invalid piece at {}, {}".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'),
+                                                               x, y))
+            return False
         else:
+            logging.debug("{}: Invalid player id {} moving piece at {}, {}".format(player_token,
+                                                            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'),x, y))
             return False
 
     def move(self, piece, destination):

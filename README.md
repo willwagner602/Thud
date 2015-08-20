@@ -32,15 +32,10 @@ of a shove.
 
 # Thud Gameserver API
 
-This backend is run on a gameserver at *Not Hosted Yet - Message Will if Interested*
-
-To make API calls, you need to pass the following JSON objects:
+This backend is run on a gameserver at *Not Hosted Yet*.
 
 Start game:
     {"game": "begin",
-     "player": "null",
-     "start": "null",
-     "destination": "null",
      "player_one": "Will",
      "player_two": "Tom"}
 

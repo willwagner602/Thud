@@ -5,8 +5,8 @@ from socket import *
 
 logging.basicConfig(filename='ThudClient.log', level=logging.DEBUG)
 
-HOST = 'localhost'
-PORT = 12000
+HOST = '172.17.51.22'
+PORT = 8080
 BUFFERSIZE = 1024
 ADDRESS = (HOST, PORT)
 
