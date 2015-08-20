@@ -6,6 +6,7 @@ import tornado.ioloop
 import tornado.web
 import logging
 import Thud
+import sys
 
 logging.basicConfig(filename='ThudSocketServer.log', level=logging.DEBUG)
 
@@ -50,9 +51,14 @@ class EndGame(BaseHandler):
         self.write(tornado.escape.json_encode(response))
 
 
-def runserver(port=80):
+if __name__ == '__main__':
 
-    PORT = port
+    PORT = sys.argv[1]
+    try:
+        PORT = int(PORT)
+    except TypeError:
+        PORT = 80
+    print(PORT)
 
     game_manager = Thud.GameManager()
 
@@ -65,3 +71,4 @@ def runserver(port=80):
 
     application.listen(PORT)
     tornado.ioloop.IOLoop.instance().start()
+
