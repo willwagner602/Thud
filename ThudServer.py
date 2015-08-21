@@ -18,8 +18,9 @@ class BaseHandler(tornado.web.RequestHandler):
 
 class VersionHandler(BaseHandler):
     def get(self):
-        response = { 'version': '1',
-                     'last_build': date.today().isoformat()}
+        response = {'name': 'ThudServer',
+                    'version': '1.0',
+                    'last_build': date.today().isoformat()}
         self.write(tornado.escape.json_encode(response))
 
 
@@ -59,14 +60,7 @@ class EndGame(BaseHandler):
         self.write(tornado.escape.json_encode(response))
 
 
-if __name__ == '__main__':
-    try:
-        PORT = int(sys.argv[1])
-    except (TypeError, IndexError):
-        PORT = 80
-    print(PORT)
-
-    game_manager = Thud.GameManager()
+def run_server(port):
 
     application = tornado.web.Application([
         (r"/getgamebyid/([0-9]+)", GetGameByIdHandler),
@@ -76,6 +70,17 @@ if __name__ == '__main__':
         (r"/move/validate", ValidateMove),
     ])
 
-    application.listen(PORT)
+    application.listen(port)
     tornado.ioloop.IOLoop.instance().start()
+
+if __name__ == '__main__':
+    try:
+        PORT = int(sys.argv[1])
+    except (TypeError, IndexError):
+        PORT = 80
+    print("Thud server starting on port ", PORT)
+
+    run_server(PORT)
+    game_manager = Thud.GameManager()
+
 

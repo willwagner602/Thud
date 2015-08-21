@@ -4,6 +4,8 @@ import unittest
 import Thud
 import json
 import ThudServer
+import requests
+import json
 
 
 class BoardTest(unittest.TestCase):
@@ -565,17 +567,23 @@ class PieceTest(unittest.TestCase):
 
 class ServerTest(unittest.TestCase):
 
-    def setUp(self):
-        self.test_server = ThudServer
-
     def test_start_game(self):
         # start the game by hitting the endpoint with an appropriate websocket
+        start_url = 'http://192.241.198.50/start'
+        start_data = {"game": "start", "player_one": "Will", "player_two": "Tom"}
+        get = requests.post(start_url, json.dumps(start_data))
+        data = json.loads(get.text)
+        board = data['board']
+        player_one = data['player_one']
+        player_two = data['player_two']
+        game = data['game']
+        test_board = json.loads(open('api_test.json').read())["base state"]
+        self.assertEqual(board, test_board)
+
+    def test_validate_move(self):
+        # test simulated moves for checking moves/captures to display in the UI
         pass
 
     def test_simulate_game(self):
         # simulate a series of valid and invalid moves and attacks
-        pass
-
-    def test_validate_move(self):
-        # test simulated moves for checking moves/captures to display in the UI
         pass
