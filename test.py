@@ -2,8 +2,6 @@ __author__ = 'wwagner'
 
 import unittest
 import Thud
-import json
-import ThudServer
 import requests
 import json
 
@@ -106,8 +104,9 @@ class GameManagerTest(unittest.TestCase):
             'test_one', 'test_two'
         )
 
-    def array_data_helper(self, live_data, test_data, test_object):
-        test_data = json.loads(test_data)[test_object]
+    def array_data_helper(self, live_data, test_data, test_object=""):
+        if test_object:
+            test_data = json.loads(test_data)[test_object]
         for row in live_data:
             self.assertEqual(live_data[row], test_data[row])
 
@@ -122,6 +121,9 @@ class GameManagerTest(unittest.TestCase):
                 "player": self.player_two_token,
                 "start": start,
                 "destination": destination}
+
+    def get_unit_helper(self, x, y):
+        return self.test_game_manager.active_games[self.game_token].board.get_piece(x, y)
 
     def test_create_identical_game_names(self):
         game_token_2, player_one_token_2, player_two_token_2 = self.test_game_manager.start_game(
@@ -225,6 +227,34 @@ class GameManagerTest(unittest.TestCase):
         self.assertEqual(self.test_game_manager.process_move(self.troll_move_helper((6, 6), (6, 5)), test=True),
                          [self.test_game_manager.active_games[self.game_token].board.get_piece(6, 4)])
         self.assertEqual(self.test_game_manager.active_games[self.game_token].move_history, moves)
+
+    def test_process_input_test_troll_attack(self):
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((9, 0), (9, 1))))
+        self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((6, 6), (6, 5))))
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((9, 1), (9, 0))))
+        self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((6, 5), (6, 4))))
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((9, 0), (9, 1))))
+        self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((6, 4), (6, 3))))
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((9, 1), (9, 0))))
+        self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((6, 3), (6, 2))))
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((9, 0), (9, 1))))
+        board_state = self.test_game_manager.report_game_state(self.game_token)
+        expected_captures = [self.get_unit_helper(4, 1), self.get_unit_helper(5, 0), self.get_unit_helper(6, 0)]
+        self.assertEqual(self.test_game_manager.process_move(self.troll_move_helper((6, 2), (5, 1)), test=True),
+                         expected_captures)
+        self.assertEqual(board_state, self.test_game_manager.report_game_state(self.game_token))
+
+    def test_process_input_test_dwarf_toss(self):
+        # move some dwarves and trolls to setup toss
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((10, 13), (8, 13))))
+        self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((7, 8), (8, 9))))
+        self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((11, 12), (8, 12))))
+        self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((7, 6), (8, 5))))
+        # capture a troll with a dwarf
+        board_state = self.test_game_manager.report_game_state(self.game_token)
+        self.assertEqual(self.test_game_manager.process_move(self.dwarf_move_helper((8, 12), (8, 9)), test=True),
+                         [self.get_unit_helper(8, 9)])
+        self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
 
 
 class GameTest(unittest.TestCase):
@@ -567,23 +597,85 @@ class PieceTest(unittest.TestCase):
 
 class ServerTest(unittest.TestCase):
 
-    def test_start_game(self):
+    def setUp(self):
         # start the game by hitting the endpoint with an appropriate websocket
         start_url = 'http://192.241.198.50/start'
-        start_data = {"game": "start", "player_one": "Will", "player_two": "Tom"}
-        get = requests.post(start_url, json.dumps(start_data))
-        data = json.loads(get.text)
-        board = data['board']
-        player_one = data['player_one']
-        player_two = data['player_two']
-        game = data['game']
+        start_data = json.dumps({"game": "start", "player_one": "Will", "player_two": "Tom"})
+        post = requests.post(start_url, start_data)
+        data = json.loads(post.text)
+        self.board = data['board']
+        self.player_one = data['player_one']
+        self.player_two = data['player_two']
+        self.game = data['game']
+
+    def test_start_game(self):
         test_board = json.loads(open('api_test.json').read())["base state"]
-        self.assertEqual(board, test_board)
+        self.assertEqual(self.board, test_board)
 
     def test_validate_move(self):
         # test simulated moves for checking moves/captures to display in the UI
-        pass
+        move_url = 'http://192.241.198.50/move'
+        move_data = {"game": self.game, "player": self.player_one,
+                     "start": [6, 0], "destination": [6, 5]}
+        post = requests.post(move_url, json.dumps(move_data))
+        data = json.loads(post.text)
+        self.assertEqual(data, True)
 
-    def test_simulate_game(self):
+    def test_troll_toss(self):
         # simulate a series of valid and invalid moves and attacks
-        pass
+        move_url = 'http://192.241.198.50/move'
+        first_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [6, 0], "destination": [6, 4]}
+        second_move_data = {"game": self.game, "player": self.player_two,
+                            "start": [6, 6], "destination": [6, 5]}
+        data = json.loads(requests.post(move_url, json.dumps(first_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(second_move_data)).text)
+        self.assertEqual(data, [[6, 4]])
+
+    def test_toss_dwarf(self):
+        move_url = 'http://192.241.198.50/move'
+        first_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [10, 1], "destination": [6, 1]}
+        second_move_data = {"game": self.game, "player": self.player_two,
+                            "start": [6, 6], "destination": [6, 5]}
+        third_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [11, 2], "destination": [6, 2]}
+        fourth_move_data = {"game": self.game, "player": self.player_two,
+                            "start": [7, 6], "destination": [6, 6]}
+        fifth_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [6, 2], "destination": [6, 5]}
+        data = json.loads(requests.post(move_url, json.dumps(first_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(second_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(third_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(fourth_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(fifth_move_data)).text)
+        self.assertEqual(data, [[6, 5]])
+
+    def test_validate_toss(self):
+        move_url = 'http://192.241.198.50/move'
+        validate_url = 'http://192.241.198.50/move/validate'
+        first_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [10, 1], "destination": [6, 1]}
+        second_move_data = {"game": self.game, "player": self.player_two,
+                            "start": [6, 6], "destination": [6, 5]}
+        third_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [11, 2], "destination": [6, 2]}
+        fourth_move_data = {"game": self.game, "player": self.player_two,
+                            "start": [7, 6], "destination": [6, 6]}
+        fifth_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [6, 2], "destination": [6, 5]}
+        data = json.loads(requests.post(move_url, json.dumps(first_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(second_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(third_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(move_url, json.dumps(fourth_move_data)).text)
+        self.assertEqual(data, True)
+        data = json.loads(requests.post(validate_url, json.dumps(fifth_move_data)).text)
+        print(type(data), data)
