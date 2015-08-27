@@ -86,16 +86,16 @@ class LocalServerTest(unittest.TestCase):
         data = json.loads(requests.post(self.move_url, json.dumps(fourth_move_data)).text)
         self.assertEqual(data, True)
         data = json.loads(requests.post(self.validate_url, json.dumps(fifth_move_data)).text)
-        print(type(data), data)
 
 
 class LiveServerTest(unittest.TestCase):
 
     def setUp(self):
         # start the game by hitting the endpoint with an appropriate websocket
-        self.start_url = 'http://192.241.198.50/start'
-        self.move_url = 'http://192.241.198.50/move'
-        self.validate_url = 'http://192.241.198.50/move/validate'
+        self.base_url = 'http://192.241.198.50/'
+        self.start_url = self.base_url + 'start'
+        self.move_url = self.base_url + 'move'
+        self.validate_url = self.base_url + 'move/validate'
         start_data = json.dumps({"game": "start", "player_one": "Will", "player_two": "Tom"})
         post = requests.post(self.start_url, start_data)
         data = json.loads(post.text)

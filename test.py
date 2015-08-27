@@ -227,7 +227,7 @@ class GameManagerTest(unittest.TestCase):
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((6, 0), (6, 4))))
         moves = self.test_game_manager.active_games[self.game_token].move_history
         self.assertEqual(self.test_game_manager.process_move(self.troll_move_helper((6, 6), (6, 5)), test=True),
-                         [self.test_game_manager.active_games[self.game_token].board.get_piece(6, 4)])
+                         [(6, 4)])
         self.assertEqual(self.test_game_manager.active_games[self.game_token].move_history, moves)
 
     def test_process_input_test_troll_attack(self):
@@ -241,7 +241,7 @@ class GameManagerTest(unittest.TestCase):
         self.assertTrue(self.test_game_manager.process_move(self.troll_move_helper((6, 3), (6, 2))))
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((9, 0), (9, 1))))
         board_state = self.test_game_manager.report_game_state(self.game_token)
-        expected_captures = [self.get_unit_helper(4, 1), self.get_unit_helper(5, 0), self.get_unit_helper(6, 0)]
+        expected_captures = [(4, 1), (5, 0), (6, 0)]
         self.assertEqual(self.test_game_manager.process_move(self.troll_move_helper((6, 2), (5, 1)), test=True),
                          expected_captures)
         self.assertEqual(board_state, self.test_game_manager.report_game_state(self.game_token))
@@ -255,7 +255,7 @@ class GameManagerTest(unittest.TestCase):
         # capture a troll with a dwarf
         board_state = self.test_game_manager.report_game_state(self.game_token)
         self.assertEqual(self.test_game_manager.process_move(self.dwarf_move_helper((8, 12), (8, 9)), test=True),
-                         [self.get_unit_helper(8, 9)])
+                         [(8, 9)])
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
 
 

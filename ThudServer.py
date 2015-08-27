@@ -53,6 +53,13 @@ class ValidateMove(BaseHandler):
         self.write(tornado.escape.json_encode(response))
 
 
+class GetBoardState(BaseHandler):
+    def post(self):
+        game = tornado.escape.json_decode(self.request.body)
+        response = game_manager.report_game_state(game)
+        self.write(tornado.escape.json_encode(response))
+
+
 class EndGame(BaseHandler):
     def post(self):
         end_data = tornado.escape.json_decode(self.request.body)
@@ -68,6 +75,7 @@ def run_server(port):
         (r"/start", StartGameWithPlayers),
         (r"/move", ExecuteMove),
         (r"/move/validate", ValidateMove),
+        (r"/game", GetBoardState),
     ])
 
     application.listen(port)
@@ -80,7 +88,7 @@ if __name__ == '__main__':
         PORT = 80
     print("Thud server starting on port ", PORT)
 
-    # start the game manager before the webserver
+    # start the game manager BEFORE the webserver
     game_manager = Thud.GameManager()
     run_server(PORT)
 

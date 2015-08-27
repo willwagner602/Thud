@@ -119,7 +119,7 @@ class GameManager(object):
     """
 
     def __init__(self):
-        logging.debug('Game Manager started at {}.'.format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+        logging.debug('Game Manager started at {}.'.format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
         self.name = 'Game Manager'
         self.active_games = {}
 
@@ -498,8 +498,9 @@ class Game(object):
             # is a dwarf attack or invalid, because only dwarves can move on top of another piece
             if isinstance(target, Piece):
                 if isinstance(piece, Dwarf) and isinstance(target, Troll):
-                    logging.debug("Validated dwarf attack with piece {} at {}, {} destination of {}, {}.".format(
-                                                                                           piece, x, y, dest_x, dest_y))
+                    logging.debug(
+                        "Validated dwarf attack with piece {} at {}, {} destination of {}, {}.".format(
+                            piece, x, y, dest_x, dest_y))
                     dwarf_attack = self.validate_dwarf_attack(piece, target)
                     return dwarf_attack
                 # trolls cannot move on top of another piece
@@ -544,7 +545,7 @@ class Game(object):
                 return True
             elif move and test:
                 if isinstance(move, list):
-                    return move
+                    return [(piece.x, piece.y) for piece in move]
                 else:
                     return True
             else:
