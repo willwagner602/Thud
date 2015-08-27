@@ -80,7 +80,8 @@ if __name__ == '__main__':
         PORT = 80
     print("Thud server starting on port ", PORT)
 
-    run_server(PORT)
+    # start the game manager before the webserver
     game_manager = Thud.GameManager()
+    run_server(PORT)
 
 
