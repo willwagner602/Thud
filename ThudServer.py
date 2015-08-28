@@ -67,6 +67,11 @@ class EndGame(BaseHandler):
         self.write(tornado.escape.json_encode(response))
 
 
+class MatchPlayers(BaseHandler):
+    def post(self):
+        pass
+
+
 def run_server(port):
 
     application = tornado.web.Application([
@@ -76,6 +81,7 @@ def run_server(port):
         (r"/move", ExecuteMove),
         (r"/move/validate", ValidateMove),
         (r"/game", GetBoardState),
+        (r"/match", MatchPlayers)
     ])
 
     application.listen(port)

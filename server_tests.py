@@ -87,6 +87,16 @@ class LocalServerTest(unittest.TestCase):
         self.assertEqual(data, True)
         data = json.loads(requests.post(self.validate_url, json.dumps(fifth_move_data)).text)
 
+    def test_validate_toss_failure(self):
+        first_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [14, 6], "destination": [8, 6]}
+        data = json.loads(requests.post(self.move_url, json.dumps(first_move_data)).text)
+        self.assertEqual(data, False)
+        first_move_data = {"game": self.game, "player": self.player_one,
+                           "start": [14, 8], "destination": [8, 8]}
+        data = json.loads(requests.post(self.move_url, json.dumps(first_move_data)).text)
+        self.assertEqual(data, False)
+
 
 class LiveServerTest(unittest.TestCase):
 
@@ -169,4 +179,3 @@ class LiveServerTest(unittest.TestCase):
         data = json.loads(requests.post(self.move_url, json.dumps(fourth_move_data)).text)
         self.assertEqual(data, True)
         data = json.loads(requests.post(self.validate_url, json.dumps(fifth_move_data)).text)
-        print(type(data), data)

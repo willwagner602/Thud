@@ -122,6 +122,7 @@ class GameManager(object):
         logging.debug('Game Manager started at {}.'.format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
         self.name = 'Game Manager'
         self.active_games = {}
+        self.last_cleared = datetime.datetime.now()
 
     def __str__(self):
         return self.name
@@ -213,6 +214,15 @@ class GameManager(object):
         except KeyError:
             return "Bad JSON data."
 
+    def clear_old_games(self):
+        if datetime.datetime.now() - self.last_cleared > datetime.timedelta(hours=2):
+            for game in self.active_games:
+                if datetime.datetime.now() - game.last_accessed > datetime.timedelta(hours=2):
+                    del self.active_games[game]
+            return True
+        else:
+            return False
+
 
 class Game(object):
     """
@@ -224,6 +234,7 @@ class Game(object):
         self.board = Board()
         self.player_one = Player(player_one, self.generate_player_token(), "D")
         self.player_two = Player(player_two, self.generate_player_token(), "T")
+        self.last_accessed = datetime.datetime.now()
         self.move_history = []
 
     def __str__(self):
@@ -384,6 +395,14 @@ class Game(object):
         if not y_check:
             y_check = [piece.y for x in range(0, len(x_check))]
 
+        for x in x_check:
+            if x < 0 or x > 14:
+                return False
+
+        for y in y_check:
+            if y < 0 or y > 14:
+                return False
+
         check_squares = list(zip(x_check, y_check))
 
         logging.debug("Delta x: {}, Delta y: {}, List of x to check: {}, List of y to check: {}".format(
@@ -491,7 +510,7 @@ class Game(object):
 
         if self.validate_destination(destination):
             target = self.board.get_piece(dest_x, dest_y)
-            logging.debug("{}: Validated {} at {}, {} destination of {}, {}.".format(
+            logging.debug("{}: Validating {} at {}, {} destination of {}, {}.".format(
                 datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, x, y, dest_x, dest_y
             ))
 
@@ -528,6 +547,7 @@ class Game(object):
         return True
 
     def execute_move(self, player_token, start, destination, test=False):
+        self.record_access()
         x, y = start
         piece = self.board.get_piece(x, y)
         if piece and self.validate_player(player_token, piece):
@@ -567,6 +587,9 @@ class Game(object):
         self.store_move((piece.x, piece.y), destination)
         self.board.move_piece_on_board(piece, x, y)
         piece.move(destination)
+
+    def record_access(self):
+        self.last_accessed = datetime.datetime.now()
 
 
 class Piece(object):
