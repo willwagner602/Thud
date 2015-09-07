@@ -5,6 +5,11 @@ import datetime
 import random
 import string
 
+#database testing stuff
+import sqlite3
+from pathlib import Path
+import json
+
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
 
@@ -132,11 +137,12 @@ class GameManager(object):
 
     def start_game(self, player_one, player_two):
         """
-        Generates a game token, and individual player tokens for authentication
+        Generates a game token and individual player tokens for authentication. Saves the new game to the database.
         """
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
         self.active_games[game_token] = game
+        self.save_game(game_token)
         logging.debug("{}: Game {} start with players {}, {}".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), game_token, game.player_one.token,
             game.player_two.token))
@@ -161,6 +167,38 @@ class GameManager(object):
         except KeyError:
             return False
 
+    def save_game(self,game_id):
+        '''
+        Manages game saving.
+        Executed upon game creation in Thud.GameManager.start_game and every turn in Thud.GameManager.process_move.
+        It might be possible to ignore the json conversion entirely and load the string from self.report_game_state(game_id) directly
+        to the database. Although serializing is generally frowned upon for SQL, I think it's okay to do it in this case because there's
+        never an instance where we'd only want to retrieve parts of the board.
+        '''
+        # todo: 1) Exception catching 2) test.py causes an issue with unclosed files (it shouldn't, not sure why) 3) Write the load method
+        game_state = json.dumps(self.report_game_state(game_id), separators=(',', ': '))
+        gamedbpath = Path('.\games.db')
+        
+        # Create the sqlite database if it doesn't exist and connect to it. There also might be a cleaner way to do this part.
+        if not gamedbpath.is_file():
+            game_db = sqlite3.connect('.\games.db')
+            c_game_db = game_db.cursor()
+            c_game_db.execute('''CREATE TABLE game (gametoken text, board text)''')
+        else:
+            game_db = sqlite3.connect('.\games.db')
+            c_game_db = game_db.cursor()
+        
+        c_game_db.execute("SELECT ROWID FROM game WHERE gametoken = (?) ",(game_id,))
+        rowid = c_game_db.fetchone()
+
+        if rowid:
+            c_game_db.execute("UPDATE game SET board = (?) WHERE ROWID = (?)",(game_state,rowid[0]))
+        else:
+            c_game_db.execute("INSERT INTO game VALUES (?,?)",(game_id,game_state))
+
+        game_db.commit()
+        game_db.close()
+        
     def report_game_state(self, game_id):
         """
         Returns a json representation of the current game state
@@ -196,6 +234,8 @@ class GameManager(object):
                 logging.debug("{}: Game {} found, attempting move from {} to {}.".format(
                     game_token, datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), start, destination))
                 game = self.active_games[game_token]
+                # Added turn by turn saving here, I figured it didn't belong in the "Game" object.
+                self.save_game(game_token)
                 return game.execute_move(player_token, start, destination, test)
             else:
                 logging.debug("{}: Game {} not found.".format(game_token,
