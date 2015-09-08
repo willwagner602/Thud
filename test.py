@@ -4,7 +4,7 @@ import unittest
 import Thud
 import ThudServer
 import os
-import requests
+#import requests
 import json
 
 
@@ -134,9 +134,11 @@ class GameManagerTest(unittest.TestCase):
         self.assertFalse(self.game_token == game_token_2)
 
     def test_report_game_state(self):
-        test_data = open("api_test.json").read()
-        live_data = self.test_game_manager.report_game_state(self.game_token)
-        self.array_data_helper(live_data, test_data, "base state")
+        with open("api_test.json") as test_file:
+            test_data = test_file.read()
+            live_data = self.test_game_manager.report_game_state(self.game_token)
+            self.array_data_helper(live_data, test_data, "base state")
+        test_file.close()
 
     def test_process_input_start_game(self):
         test_start = {"game": "begin",
@@ -199,17 +201,21 @@ class GameManagerTest(unittest.TestCase):
     def test_modified_game_state(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                                 "start": [5, 0], "destination": [5, 13]}
-        test_data = open("api_test.json").read()
-        # guard test to make the move and ensure it was successful
-        self.assertTrue(self.test_game_manager.process_move(test_move))
-        live_data = self.test_game_manager.report_game_state(self.game_token)
-        self.array_data_helper(live_data, test_data, "first move")
+        with open("api_test.json") as test_file:
+            test_data = test_file.read()
+            # guard test to make the move and ensure it was successful
+            self.assertTrue(self.test_game_manager.process_move(test_move))
+            live_data = self.test_game_manager.report_game_state(self.game_token)
+            self.array_data_helper(live_data, test_data, "first move")
+        test_file.close()
 
     def test_process_move_failure_troll_moves_first(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                      "start": [6, 6], "destination": [5, 6]}
-        test_data = open("api_test.json").read()
-        self.assertFalse(self.test_game_manager.process_move(test_move))
+        with open("api_test.json") as test_file:
+            test_data = test_file.read()
+            self.assertFalse(self.test_game_manager.process_move(test_move))
+        test_file.close()
 
     def test_troll_move_failure(self):
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((10, 13), (8, 13))))
@@ -258,6 +264,43 @@ class GameManagerTest(unittest.TestCase):
                          [(8, 9)])
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
 
+    def test_save_load(self):
+        self.test_game = self.test_game_manager.active_games['test_onetest_two1']
+        initial = str(self.test_game.board.squares)
+
+        # Load initial state.
+        self.test_game_manager.load_game('test_onetest_two1')
+        ini_load = str(self.test_game.board.squares)
+
+        self.player_one = self.test_game.player_one
+        self.player_two = self.test_game.player_two
+        
+        # Make moves
+        self.test_game.execute_move(self.player_one.token, (3, 2), (3, 3))
+        self.test_game.execute_move(self.player_two.token, (6, 6), (5, 5))
+        self.test_game.execute_move(self.player_one.token, (1, 4), (2, 4))
+        self.test_game.execute_move(self.player_two.token, (5, 5), (4, 5))
+        self.test_game.execute_move(self.player_one.token, (0, 5), (2, 5))
+        post_move = str(self.test_game.board.squares)
+        
+        self.test_game_manager.load_game('test_onetest_two1')
+        post_move_load = str(self.test_game.board.squares)
+
+        print('Initial')
+        print(initial)
+        print('\r\n')
+
+        print('Initial Loaded')
+        print(ini_load)
+        print('\r\n')
+        
+        print('Post Moves')
+        print(post_move)
+        print('\r\n')
+
+        print('Post Moves Loaded')
+        print(post_move_load)
+        print('\r\n')
 
 class GameTest(unittest.TestCase):
 
