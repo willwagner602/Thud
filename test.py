@@ -265,27 +265,27 @@ class GameManagerTest(unittest.TestCase):
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
 
     def test_save_load(self):
-        self.test_game = self.test_game_manager.active_games['test_onetest_two1']
-        initial = str(self.test_game.board.squares)
+        self.test_game = self.test_game_manager.active_games # For some reason using this method prevents loading, not sure why.
+        initial = str(self.test_game['test_onetest_two1'].board.squares)
 
         # Load initial state.
         self.test_game_manager.load_game('test_onetest_two1')
-        ini_load = str(self.test_game.board.squares)
+        ini_load = str(self.test_game['test_onetest_two1'].board.squares)
 
-        self.player_one = self.test_game.player_one
-        self.player_two = self.test_game.player_two
+        self.player_one = self.test_game['test_onetest_two1'].player_one
+        self.player_two = self.test_game['test_onetest_two1'].player_two
         
         # Make moves
-        self.test_game.execute_move(self.player_one.token, (3, 2), (3, 3))
-        self.test_game.execute_move(self.player_two.token, (6, 6), (5, 5))
-        self.test_game.execute_move(self.player_one.token, (1, 4), (2, 4))
-        self.test_game.execute_move(self.player_two.token, (5, 5), (4, 5))
-        self.test_game.execute_move(self.player_one.token, (0, 5), (2, 5))
-        post_move = str(self.test_game.board.squares)
+        self.test_game['test_onetest_two1'].execute_move(self.player_one.token, (3, 2), (3, 3))
+        self.test_game['test_onetest_two1'].execute_move(self.player_two.token, (6, 6), (5, 5))
+        self.test_game['test_onetest_two1'].execute_move(self.player_one.token, (1, 4), (2, 4))
+        self.test_game['test_onetest_two1'].execute_move(self.player_two.token, (5, 5), (4, 5))
+        self.test_game['test_onetest_two1'].execute_move(self.player_one.token, (0, 5), (2, 5))
+        post_move = str(self.test_game['test_onetest_two1'].board.squares)
         
         self.test_game_manager.load_game('test_onetest_two1')
-        post_move_load = str(self.test_game.board.squares)
-
+        post_move_load = str(self.test_game['test_onetest_two1'].board.squares)
+        '''
         print('Initial')
         print(initial)
         print('\r\n')
@@ -301,7 +301,7 @@ class GameManagerTest(unittest.TestCase):
         print('Post Moves Loaded')
         print(post_move_load)
         print('\r\n')
-
+        '''
 class GameTest(unittest.TestCase):
 
     def setUp(self):

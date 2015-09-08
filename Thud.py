@@ -176,7 +176,8 @@ class GameManager(object):
         to the database. Although serializing data into a single cell is generally frowned upon for SQL, I think it's okay to do it in
         this case because there's never an instance where we'd only want to retrieve parts of the board.
         '''
-        # ToDo: 1) Exception catching for: connecting to database, writing to database, closing database.
+        # ToDo: 1) Saving all the game data: player names, races, possibly turn history, etc. 2) Figure out how to handle changing players in a game
+        # 3) Break up repetitive work into new methods (e.g. loading database). 1) Exception catching for: connecting to database, writing to database, closing database.
         game_state = json.dumps(self.report_game_state(game_id), separators=(',', ': ')) # Production: Compact encoding.
         gamedbpath = Path('.\games.db')
         turn = len(self.active_games[game_id].move_history)
@@ -191,7 +192,7 @@ class GameManager(object):
         else:
             game_db = sqlite3.connect('.\games.db')
             c_game_db = game_db.cursor()
-            
+
         c_game_db.execute("SELECT ROWID FROM Games WHERE gametoken = (?) ",(game_id,))
         rowid = c_game_db.fetchone()
 
@@ -211,16 +212,17 @@ class GameManager(object):
     
     def load_game(self, game_id):
         '''
-        Retrieves player_one, player_two, the turn number, and board from database. We need to write a read_game_state
+        Retrieves player tokens the turn number, and board from database. We need to write a read_game_state
         method that does the reverse of GameManager.report_game_state so that the board is usable by the game engine.
         '''
-        #ToDo: Exception catching for: can't find requested game token, closing database, converting game board to engine readable.
+        # ToDo: In addition to stuff from save_game: Exception catching for: can't find requested game token, closing
+        # database, converting game board to engine readable.
         try:
             game_db = sqlite3.connect('.\games.db')
         except:
             print("Error accessing the database.")
         c_game_db = game_db.cursor()
-        
+
         c_game_db.execute("SELECT player1 FROM Games WHERE gametoken = (?) ",(game_id,))
         player_one = c_game_db.fetchone()[0]
         c_game_db.execute("SELECT player2 FROM Games WHERE gametoken = (?) ",(game_id,))
@@ -229,7 +231,7 @@ class GameManager(object):
         turn = c_game_db.fetchone()[0]
         c_game_db.execute("SELECT board FROM Games WHERE gametoken = (?) ",(game_id,))
         game_state = json.loads(c_game_db.fetchone()[0])
-        
+
         self.active_games[game_id] = Game(player_one,player_two)
         self.read_game_state(game_id,game_state)
         self.active_games[game_id].move_history = [None] * turn
@@ -239,9 +241,8 @@ class GameManager(object):
         game_db.close()
     
     def read_game_state(self, game_id, game_state):
-        # ToDo: Fix game_board ownership issue (local vs global) which is preventing incorrect loading.
         game_board = self.active_games[game_id].board
-        
+
         for x, column in enumerate(self.active_games[game_id].board):
             before = str(self.active_games[game_id].board[x])
             for y, square in enumerate(column):
@@ -271,7 +272,6 @@ class GameManager(object):
                 else:
                     row_state.append({"id": "null", "type": "open"})
             board_state[str(x)] = row_state
-        #print("%s\r\n\r\n\r\n" % board_state[str(0)])
         return board_state
 
     def process_move(self, move_data, test=False):
