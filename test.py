@@ -1,12 +1,10 @@
 __author__ = 'wwagner'
 
 import unittest
+import unittest.mock
 import Thud
-import ThudServer
-import os
-#import requests
 import json
-from pathlib import Path
+
 
 class BoardTest(unittest.TestCase):
 
@@ -100,6 +98,9 @@ class BoardTest(unittest.TestCase):
 
 class GameManagerTest(unittest.TestCase):
 
+    class MockSocket(object):
+            pass
+
     def setUp(self):
         self.test_game_manager = Thud.GameManager()
         self.game_token, self.player_one_token, self.player_two_token = self.test_game_manager.start_game(
@@ -134,11 +135,9 @@ class GameManagerTest(unittest.TestCase):
         self.assertFalse(self.game_token == game_token_2)
 
     def test_report_game_state(self):
-        with open("api_test.json") as test_file:
-            test_data = test_file.read()
-            live_data = self.test_game_manager.report_game_state(self.game_token)
-            self.array_data_helper(live_data, test_data, "base state")
-        test_file.close()
+        test_data = open("api_test.json").read()
+        live_data = self.test_game_manager.report_game_state(self.game_token)
+        self.array_data_helper(live_data, test_data, "base state")
 
     def test_process_input_start_game(self):
         test_start = {"game": "begin",
@@ -201,21 +200,17 @@ class GameManagerTest(unittest.TestCase):
     def test_modified_game_state(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                                 "start": [5, 0], "destination": [5, 13]}
-        with open("api_test.json") as test_file:
-            test_data = test_file.read()
-            # guard test to make the move and ensure it was successful
-            self.assertTrue(self.test_game_manager.process_move(test_move))
-            live_data = self.test_game_manager.report_game_state(self.game_token)
-            self.array_data_helper(live_data, test_data, "first move")
-        test_file.close()
+        test_data = open("api_test.json").read()
+        # guard test to make the move and ensure it was successful
+        self.assertTrue(self.test_game_manager.process_move(test_move))
+        live_data = self.test_game_manager.report_game_state(self.game_token)
+        self.array_data_helper(live_data, test_data, "first move")
 
     def test_process_move_failure_troll_moves_first(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                      "start": [6, 6], "destination": [5, 6]}
-        with open("api_test.json") as test_file:
-            test_data = test_file.read()
-            self.assertFalse(self.test_game_manager.process_move(test_move))
-        test_file.close()
+        test_data = open("api_test.json").read()
+        self.assertFalse(self.test_game_manager.process_move(test_move))
 
     def test_troll_move_failure(self):
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((10, 13), (8, 13))))
@@ -265,133 +260,100 @@ class GameManagerTest(unittest.TestCase):
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
 
     def test_save_load(self):
-        with open('test_save_load.txt', 'w+') as file:
-            self.test_game = self.test_game_manager
+        self.test_game = self.test_game_manager
+        
+        initial = self.log_game()
 
-            file.write('Initial')
-            self.log_game(file)
-            initial = str(self.test_game.active_games['test_onetest_two1'].board.squares)
-            initialm = str(self.test_game.active_games['test_onetest_two1'].move_history)
-            
-            del self.test_game.active_games['test_onetest_two1']
-            # Load initial state
-            self.test_game.load_game('test_onetest_two1')
-            
-            file.write('Initial Loaded')
-            self.log_game(file)
-            ini_load = str(self.test_game.active_games['test_onetest_two1'].board.squares)
-            ini_loadm = str(self.test_game.active_games['test_onetest_two1'].move_history
-)
-            self.player_one = self.test_game.active_games['test_onetest_two1'].player_one
-            self.player_two = self.test_game.active_games['test_onetest_two1'].player_two
+        del self.test_game.active_games['test_onetest_two1']
+        self.test_game.load_game('test_onetest_two1')
 
-            # Make moves
-            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
-                     "start": [3, 2], "destination": [3, 3]})
-            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
-                     "start": [6, 6], "destination": [5, 5]})
-            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
-                     "start": [0, 5], "destination": [2, 5]})
-            test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
-            self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
+        ini_load = self.log_game()
 
-            file.write('Post Move')
-            self.log_game(file)
-            move = str(self.test_game.active_games['test_onetest_two1'].board.squares)
-            movem = str(self.test_game.active_games['test_onetest_two1'].move_history)
+        self.player_one = self.test_game.active_games['test_onetest_two1'].player_one
+        self.player_two = self.test_game.active_games['test_onetest_two1'].player_two
 
-            del self.test_game.active_games['test_onetest_two1']
-            self.test_game.load_game('test_onetest_two1')
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [3, 2], "destination": [3, 3]})
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
+                    "start": [6, 6], "destination": [5, 5]})
+        # Save this data, should be the same as move_load
+        load_check = self.log_game()
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [0, 5], "destination": [2, 5]})
+        test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
+        self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
 
-            file.write('Post Move Loaded Board')
-            self.log_game(file)
-            move_load = str(self.test_game.active_games['test_onetest_two1'].board.squares)
-            move_loadm = str(self.test_game.active_games['test_onetest_two1'].move_history
-)
-            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
-                     "start": [3, 2], "destination": [3, 3]})
-            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
-                     "start": [6, 6], "destination": [5, 5]})
-            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
-                     "start": [0, 5], "destination": [2, 5]})
-            test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
-            self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
+        first_move = self.log_game()
 
-            file.write('Playing on a loaded board test')
-            self.log_game(file)
-            play_load = str(self.test_game.active_games['test_onetest_two1'].board.squares)
-            play_loadm = str(self.test_game.active_games['test_onetest_two1'].move_history)
-            '''
-            print('Initial')
-            print(initial)
-            print(initialm)
-            print('\r\n')
 
-            print('Initial Loaded')
-            print(ini_load)
-            print(ini_loadm)
-            print('\r\n')
+        del self.test_game.active_games['test_onetest_two1']
+        self.test_game.load_game('test_onetest_two1')
 
-            print('Post Move')
-            print(move)
-            print(movem)
-            print('\r\n')
+        first_move_load = self.log_game()
 
-            print('Post Move Loaded Board')
-            print(move_load)
-            print(move_loadm)
-            print('\r\n')
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [3, 2], "destination": [3, 3]})
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
+                    "start": [6, 6], "destination": [5, 5]})
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [0, 5], "destination": [2, 5]})
+        test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
+        self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
 
-            print('Playing on a loaded board test')
-            print(play_load)
-            print(play_loadm)
-            print('\r\n')
-            '''
-        file.close()
+        second_move = self.log_game()
+        for x in range(0, len(initial)):
+            self.assertTrue(initial[x] == ini_load[x])
+        for x in range(0, len(initial)):
+            self.assertTrue(load_check[x] == first_move_load[x])
+        for x in range(0, len(initial)):
+            self.assertTrue(first_move[x] == second_move[x])
     
-    def log_game(self,file):
+    def log_game(self):
+        # Saves game state
         game = self.test_game.active_games['test_onetest_two1']
-        game_array = [game.last_accessed, game.move_history,game.player_one.name, game.player_one.token, game.player_one.race, game.player_two.name, game.player_two.token,
-                        game.player_two.race,game.board.squares,game.board.moves, game.board.piece_id, game.board.units]
-        file.write('\n')
-        file.write(str(game.last_accessed))
-        file.write('\n')
-        file.write(str(game.move_history))
-        file.write('\n')
-        file.write(game.player_one.name)
-        file.write('\n')
-        file.write(game.player_one.token)
-        file.write('\n')
-        file.write(game.player_one.race)
-        file.write('\n')
-        file.write(game.player_two.name)
-        file.write('\n')
-        file.write(game.player_two.token)
-        file.write('\n')
-        file.write(game.player_two.race)
-        file.write('\n')
-        for row in game.board.squares:
-            file.write(str(row))
-            file.write('\n')
-        file.write(str(game.board.piece_id))
-        file.write('\n')
+        game_array = [json.dumps(game.move_history),str(game.player_one.name), str(game.player_one.token), str(game.player_one.race), str(game.player_two.name), str(game.player_two.token),
+                        str(game.player_two.race),str(game.board.squares),{}]
         for unit in game.board.units:
-            file.write(unit.type) 
-            file.write('\n')
-            file.write(str(unit.x))
-            file.write('\n')
-            file.write(str(unit.y))
-            file.write('\n')
-            file.write(str(unit.moves)) # need to save and load this explicitly
-            file.write('\n')
-            file.write(unit.status) # need to save and load this explicitly
-            file.write('\n')
-            file.write(str(unit.id))
-            file.write('\n')
-        file.write('\n')
-        file.write('\n')
-        file.write('\n')
+            game_array[8][str(unit.id)] = [str(unit.type), str(unit.x), str(unit.y), json.dumps(unit.moves), str(unit.status)]
         return game_array
+
+    def test_add_match_player(self):
+        socket_one = self.MockSocket()
+        socket_two = self.MockSocket()
+        self.assertEqual(self.test_game_manager.free_players, {})
+        self.test_game_manager.add_match_player("Will", socket_one)
+        self.assertEqual(self.test_game_manager.free_players, {"Will": socket_one})
+        self.test_game_manager.add_match_player("Tom", socket_two)
+        self.assertEqual(self.test_game_manager.free_players, {"Will": socket_one, "Tom": socket_two})
+
+    def test_report_free_players(self):
+        socket_one = self.MockSocket()
+        socket_two = self.MockSocket()
+        self.assertEqual(self.test_game_manager.report_free_players(), [])
+        self.test_game_manager.add_match_player("Will", socket_one)
+        self.assertEqual(self.test_game_manager.report_free_players(), ["Will"])
+        self.test_game_manager.add_match_player("Tom", socket_two)
+        for player in self.test_game_manager.report_free_players():
+            self.assertTrue(player in ["Will", "Tom"])
+
+    def test_add_player_to_server(self):
+        socket = self.MockSocket()
+        socket_two = self.MockSocket()
+        self.assertEqual(self.test_game_manager.add_player_to_server("Will", socket), [])
+        self.assertEqual(self.test_game_manager.add_player_to_server("Tom", socket_two), ["Will"])
+
+    def test_assign_sockets_both_players(self):
+        socket = self.MockSocket()
+        socket_two = self.MockSocket()
+        # mock including the sockets in the free players list
+        self.test_game_manager.free_players["Will"] = socket
+        self.test_game_manager.free_players["Tom"] = socket_two
+        self.test_game_manager.assign_sockets(self.game_token, "Will", "Tom")
+        will_socket = self.test_game_manager.active_games[self.game_token].player_one.websocket
+        tom_socket = self.test_game_manager.active_games[self.game_token].player_two.websocket
+        self.assertEqual(will_socket, socket)
+        self.assertEqual(tom_socket, socket_two)
+
 
 class GameTest(unittest.TestCase):
 

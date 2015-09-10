@@ -4,8 +4,6 @@ import logging
 import datetime
 import random
 import string
-
-#database testing stuff
 import sqlite3
 from pathlib import Path
 import json
@@ -127,6 +125,7 @@ class GameManager(object):
         logging.debug('Game Manager started at {}.'.format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
         self.name = 'Game Manager'
         self.active_games = {}
+        self.free_players = {}
         self.last_cleared = datetime.datetime.now()
 
     def __str__(self):
@@ -137,7 +136,7 @@ class GameManager(object):
 
     def start_game(self, player_one, player_two):
         """
-        Generates a game token and individual player tokens for authentication. Saves the new game to the database.
+        Generates a game token, and individual player tokens for authentication
         """
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
@@ -175,8 +174,8 @@ class GameManager(object):
         to the database. Although serializing data into a single cell is generally frowned upon for SQL, I think it's okay to do it in
         this case because there's never an instance where we'd only want to retrieve parts of the board.
         '''
-        # ToDo: 1) Saving all the game data: player names, races, possibly turn history, etc. 2) Figure out how to handle changing players in a game
-        # 3) Break up repetitive work into new methods (e.g. loading database). 1) Exception catching for: connecting to database, writing to database, closing database.
+        # ToDo: 1) Figure out how to handle changing players in a game
+        # 2) Break up repetitive work into new methods (e.g. loading database). 3) Exception catching for: connecting to database, writing to database, closing database.
         gamedbpath = Path('.\games.db')
         player_one_name = self.active_games[game_id].player_one.name
         player_one_token = self.active_games[game_id].player_one.token
@@ -207,13 +206,10 @@ class GameManager(object):
         rowid = c_game_db.fetchone()
 
         if rowid:
-            print("Saving Game")
             c_game_db.execute("UPDATE Games SET player_one_name = (?), player_one_token = (?), player_one_race = (?), player_two_name = (?), "
                                 "player_two_token = (?), player_two_race = (?), last_accessed = (?), move_history = (?), pieces = (?), board = (?) WHERE ROWID = (?)",
                                 (player_one_name,player_one_token,player_one_race,player_two_name,player_two_token,player_two_race,last_accessed,move_history,pieces,game_state,rowid[0]))
         else:
-            # Assuming this is only done upon game creation, we need to run tests to make sure this is okay
-            print("Creating Game")
             c_game_db.execute("INSERT INTO Games VALUES (?,?,?,?,?,?,?,?,?,?,?)",(game_id,player_one_name,player_one_token,player_one_race,player_two_name,player_two_token,player_two_race,last_accessed,move_history,pieces,game_state))
 
         game_db.commit()
@@ -244,19 +240,7 @@ class GameManager(object):
         game_placeholder.player_two.race = game_data[6]
         game_placeholder.last_accessed = game_data[7]
         game_placeholder.move_history = json.loads(game_data[8])
-        '''
-        for unit in json.loads(game_data[9]):
-            if unit['type'] == 'Dwarf':
-                piece = Dwarf(unit['x'], unit['y'], unit['id'])
-                piece.moves = unit['move_history']
-                piece.status = unit['status']
-                game_placeholder.board.units.append(piece)
-            elif unit['type'] == 'Troll':
-                piece = Troll(unit['x'], unit['y'], unit['id'])
-                piece.moves = unit['move_history']
-                piece.status = unit['status']
-                game_placeholder.board.units.append(piece)
-        '''
+
         self.read_game_state(game_placeholder,game_data)
 
         self.active_games[game_id] = game_placeholder
@@ -290,8 +274,23 @@ class GameManager(object):
         """
         Returns a json representation of the current game state
         """
-        # This method has some weird ass behaviors, sometimes the id and the type get switched in order for no apparent reason and the rows
-        # are never in order due to using board_state[str(x)]
+        board_state = {}
+        for x, column in enumerate(self.active_games[game_id].board):
+            row_state = []
+            for square in column:
+                if isinstance(square, Piece):
+                    row_state.append({"id": square.id, "type": square.type})
+                elif square == 0:
+                    row_state.append({"id": "null", "type": "null"})
+                else:
+                    row_state.append({"id": "null", "type": "open"})
+            board_state[str(x)] = row_state
+        return board_state
+
+    def report_game_state(self, game_id):
+        """
+        Returns a json representation of the current game state
+        """
         board_state = {}
         for x, column in enumerate(self.active_games[game_id].board):
             row_state = []
@@ -341,6 +340,74 @@ class GameManager(object):
                     "player_one": player_one_token, "player_two": player_two_token}
         except KeyError:
             return "Bad JSON data."
+
+    def assign_sockets(self, game_token, player_one, player_two):
+        player_one_socket = self.free_players[player_one]
+        game = self.active_games[game_token]
+        game.player_one.set_player_socket(self.free_players[player_one])
+        game.player_two.set_player_socket(self.free_players[player_two])
+        del self.free_players[player_one]
+        del self.free_players[player_two]
+        return True
+
+    def update_opposite_player(self, game_token, player, message):
+        game = self.active_games[game_token]
+        if player == game.player_one.name:
+            game.player_two.websocket.send_message(message)
+        elif player == game.player_two.name:
+            game.player_one.websocket.send_message(message)
+
+    def process_match_start(self, match_player, player_id):
+        if match_player in self.free_players and player_id in self.free_players:
+            game_token, player_one_token, player_two_token = self.start_game(player_id, match_player)
+            self.assign_sockets(game_token, player_id, match_player)
+            player_two_data = {"game": game_token, "board": self.report_game_state(game_token),
+                    "player_one": player_one_token}
+            self.update_opposite_player(game_token, player_id, player_two_data)
+            return {"game": game_token, "board": self.report_game_state(game_token),
+                    "player_one": player_one_token}
+
+    def process_socket_message(self, message, player_id):
+        action = message[0]
+        message = message[1]
+        logging.debug("{}: Processing socket action {} with message {}.".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), action, message))
+        if action == "match":
+            return ["start", self.process_match_start(message, player_id)]
+        elif action == "move":
+            return ["move", self.process_move(message)]
+        elif action == "test":
+            return ["test", self.process_move(message, test=True)]
+        elif action == "end":
+            return ["end", "This functionality isn't currently available."]
+            # return self.end_game(message[entry])
+        else:
+            return "No valid data found."
+
+    def report_free_players(self):
+        player_list = []
+        for player in self.free_players:
+            player_list.append(player)
+        return player_list
+
+    def add_match_player(self, player_name, websocket):
+        if player_name not in self.free_players:
+            self.free_players[player_name] = websocket
+            return True
+        else:
+            return False
+
+    def add_player_to_server(self, player_name, websocket):
+        player_list = self.report_free_players()
+        if self.add_match_player(player_name, websocket):
+            return player_list
+        else:
+            return False
+
+    def remove_player_from_server(self, player_name):
+        if player_name in self.free_players:
+            del self.free_players[player_name]
+            return True
 
     def clear_old_games(self):
         if datetime.datetime.now() - self.last_cleared > datetime.timedelta(hours=2):
@@ -780,3 +847,6 @@ class Player(object):
             self.race = 'Troll'
         else:
             raise ValueError('Race of {} is not valid - choose D (Dwarf) or (Troll)'.format(race))
+
+    def set_player_socket(self, websocket):
+        self.websocket = websocket
