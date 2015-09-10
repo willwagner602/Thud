@@ -1,10 +1,8 @@
 __author__ = 'wwagner'
 
 import unittest
+import unittest.mock
 import Thud
-import ThudServer
-import os
-import requests
 import json
 
 
@@ -99,6 +97,9 @@ class BoardTest(unittest.TestCase):
 
 
 class GameManagerTest(unittest.TestCase):
+
+    class MockSocket(object):
+            pass
 
     def setUp(self):
         self.test_game_manager = Thud.GameManager()
@@ -257,6 +258,43 @@ class GameManagerTest(unittest.TestCase):
         self.assertEqual(self.test_game_manager.process_move(self.dwarf_move_helper((8, 12), (8, 9)), test=True),
                          [(8, 9)])
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
+
+    def test_add_match_player(self):
+        socket_one = self.MockSocket()
+        socket_two = self.MockSocket()
+        self.assertEqual(self.test_game_manager.free_players, {})
+        self.test_game_manager.add_match_player("Will", socket_one)
+        self.assertEqual(self.test_game_manager.free_players, {"Will": socket_one})
+        self.test_game_manager.add_match_player("Tom", socket_two)
+        self.assertEqual(self.test_game_manager.free_players, {"Will": socket_one, "Tom": socket_two})
+
+    def test_report_free_players(self):
+        socket_one = self.MockSocket()
+        socket_two = self.MockSocket()
+        self.assertEqual(self.test_game_manager.report_free_players(), [])
+        self.test_game_manager.add_match_player("Will", socket_one)
+        self.assertEqual(self.test_game_manager.report_free_players(), ["Will"])
+        self.test_game_manager.add_match_player("Tom", socket_two)
+        for player in self.test_game_manager.report_free_players():
+            self.assertTrue(player in ["Will", "Tom"])
+
+    def test_add_player_to_server(self):
+        socket = self.MockSocket()
+        socket_two = self.MockSocket()
+        self.assertEqual(self.test_game_manager.add_player_to_server("Will", socket), [])
+        self.assertEqual(self.test_game_manager.add_player_to_server("Tom", socket_two), ["Will"])
+
+    def test_assign_sockets_both_players(self):
+        socket = self.MockSocket()
+        socket_two = self.MockSocket()
+        # mock including the sockets in the free players list
+        self.test_game_manager.free_players["Will"] = socket
+        self.test_game_manager.free_players["Tom"] = socket_two
+        self.test_game_manager.assign_sockets(self.game_token, "Will", "Tom")
+        will_socket = self.test_game_manager.active_games[self.game_token].player_one.websocket
+        tom_socket = self.test_game_manager.active_games[self.game_token].player_two.websocket
+        self.assertEqual(will_socket, socket)
+        self.assertEqual(tom_socket, socket_two)
 
 
 class GameTest(unittest.TestCase):

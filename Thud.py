@@ -122,6 +122,7 @@ class GameManager(object):
         logging.debug('Game Manager started at {}.'.format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
         self.name = 'Game Manager'
         self.active_games = {}
+        self.free_players = {}
         self.last_cleared = datetime.datetime.now()
 
     def __str__(self):
@@ -213,6 +214,74 @@ class GameManager(object):
                     "player_one": player_one_token, "player_two": player_two_token}
         except KeyError:
             return "Bad JSON data."
+
+    def assign_sockets(self, game_token, player_one, player_two):
+        player_one_socket = self.free_players[player_one]
+        game = self.active_games[game_token]
+        game.player_one.set_player_socket(self.free_players[player_one])
+        game.player_two.set_player_socket(self.free_players[player_two])
+        del self.free_players[player_one]
+        del self.free_players[player_two]
+        return True
+
+    def update_opposite_player(self, game_token, player, message):
+        game = self.active_games[game_token]
+        if player == game.player_one.name:
+            game.player_two.websocket.send_message(message)
+        elif player == game.player_two.name:
+            game.player_one.websocket.send_message(message)
+
+    def process_match_start(self, match_player, player_id):
+        if match_player in self.free_players and player_id in self.free_players:
+            game_token, player_one_token, player_two_token = self.start_game(player_id, match_player)
+            self.assign_sockets(game_token, player_id, match_player)
+            player_two_data = {"game": game_token, "board": self.report_game_state(game_token),
+                    "player_one": player_one_token}
+            self.update_opposite_player(game_token, player_id, player_two_data)
+            return {"game": game_token, "board": self.report_game_state(game_token),
+                    "player_one": player_one_token}
+
+    def process_socket_message(self, message, player_id):
+        action = message[0]
+        message = message[1]
+        logging.debug("{}: Processing socket action {} with message {}.".format(
+            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), action, message))
+        if action == "match":
+            return ["start", self.process_match_start(message, player_id)]
+        elif action == "move":
+            return ["move", self.process_move(message)]
+        elif action == "test":
+            return ["test", self.process_move(message, test=True)]
+        elif action == "end":
+            return ["end", "This functionality isn't currently available."]
+            # return self.end_game(message[entry])
+        else:
+            return "No valid data found."
+
+    def report_free_players(self):
+        player_list = []
+        for player in self.free_players:
+            player_list.append(player)
+        return player_list
+
+    def add_match_player(self, player_name, websocket):
+        if player_name not in self.free_players:
+            self.free_players[player_name] = websocket
+            return True
+        else:
+            return False
+
+    def add_player_to_server(self, player_name, websocket):
+        player_list = self.report_free_players()
+        if self.add_match_player(player_name, websocket):
+            return player_list
+        else:
+            return False
+
+    def remove_player_from_server(self, player_name):
+        if player_name in self.free_players:
+            del self.free_players[player_name]
+            return True
 
     def clear_old_games(self):
         if datetime.datetime.now() - self.last_cleared > datetime.timedelta(hours=2):
@@ -652,3 +721,6 @@ class Player(object):
             self.race = 'Troll'
         else:
             raise ValueError('Race of {} is not valid - choose D (Dwarf) or (Troll)'.format(race))
+
+    def set_player_socket(self, websocket):
+        self.websocket = websocket

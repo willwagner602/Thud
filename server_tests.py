@@ -13,6 +13,7 @@ class LocalServerTest(unittest.TestCase):
         self.start_url = 'http://127.0.0.1:12000/start'
         self.move_url = 'http://127.0.0.1:12000/move'
         self.validate_url = 'http://127.0.0.1:12000/move/validate'
+        self.match_url = 'http://127.0.0.1:12000/match'
         start_data = json.dumps({"game": "start", "player_one": "Will", "player_two": "Tom"})
         post = requests.post(self.start_url, start_data)
         data = json.loads(post.text)
@@ -96,6 +97,22 @@ class LocalServerTest(unittest.TestCase):
                            "start": [14, 8], "destination": [8, 8]}
         data = json.loads(requests.post(self.move_url, json.dumps(first_move_data)).text)
         self.assertEqual(data, False)
+
+    def test_match_add_player(self):
+        # can't use a POST here, need to open a websocket
+        pass
+        # first_player = {"player": "Will"}
+        # second_player = {"player": "Tom"}
+        # print(requests.post(self.match_url + "/Will").text)
+        # data = json.loads(requests.post(self.match_url + "/Will").text)
+        # data = json.loads(requests.post(self.match_url, json.dumps(first_player)).text)
+        # # self.assertEqual(data, [])
+        # data = json.loads(requests.post(self.match_url, json.dumps(second_player)).text)
+        # print(data)
+
+    def test_validate_websocket_connection(self):
+        web_socket_url = 'http://127.0.0.1:12000/websocket'
+        pass
 
 
 class LiveServerTest(unittest.TestCase):
