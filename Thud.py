@@ -287,23 +287,6 @@ class GameManager(object):
             board_state[str(x)] = row_state
         return board_state
 
-    def report_game_state(self, game_id):
-        """
-        Returns a json representation of the current game state
-        """
-        board_state = {}
-        for x, column in enumerate(self.active_games[game_id].board):
-            row_state = []
-            for square in column:
-                if isinstance(square, Piece):
-                    row_state.append({"id": square.id, "type": square.type})
-                elif square == 0:
-                    row_state.append({"id": "null", "type": "null"})
-                else:
-                    row_state.append({"id": "null", "type": "open"})
-            board_state[str(x)] = row_state
-        return board_state
-
     def process_move(self, move_data, test=False):
         """
         Making a move:
