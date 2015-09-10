@@ -9,7 +9,6 @@ import string
 import sqlite3
 from pathlib import Path
 import json
-from types import *
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
@@ -143,7 +142,7 @@ class GameManager(object):
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
         self.active_games[game_token] = game
-        self.save_game(game_token,player_one,player_two)
+        self.save_game(game_token)
         logging.debug("{}: Game {} start with players {}, {}".format(
             datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), game_token, game.player_one.token,
             game.player_two.token))
@@ -168,7 +167,7 @@ class GameManager(object):
         except KeyError:
             return False
 
-    def save_game(self, game_id, *players):
+    def save_game(self, game_id):
         '''
         Manages game saves. Saves gametoken, player1, player2, turn number, and the game board state to sql database.
         Executed upon game creation in Thud.GameManager.start_game and every turn in Thud.GameManager.process_move.
@@ -178,17 +177,28 @@ class GameManager(object):
         '''
         # ToDo: 1) Saving all the game data: player names, races, possibly turn history, etc. 2) Figure out how to handle changing players in a game
         # 3) Break up repetitive work into new methods (e.g. loading database). 1) Exception catching for: connecting to database, writing to database, closing database.
-        game_state = json.dumps(self.report_game_state(game_id), separators=(',', ': ')) # Production: Compact encoding.
         gamedbpath = Path('.\games.db')
-        turn = len(self.active_games[game_id].move_history)
-        player_one = self.active_games[game_id].player_one.token
-        player_two = self.active_games[game_id].player_two.token
+        player_one_name = self.active_games[game_id].player_one.name
+        player_one_token = self.active_games[game_id].player_one.token
+        player_one_race = self.active_games[game_id].player_one.race
+        player_two_name = self.active_games[game_id].player_two.name
+        player_two_token = self.active_games[game_id].player_two.token
+        player_two_race = self.active_games[game_id].player_two.race
+        last_accessed = self.active_games[game_id].last_accessed
+        move_history = json.dumps(self.active_games[game_id].move_history)
+        game_state = json.dumps(self.report_game_state(game_id), separators=(',', ': ')) # Production: Compact encoding.
+        pieces_raw = {}
+        for unit in self.active_games[game_id].board.units:
+            pieces_raw[unit.id] = {"type": unit.type, "move_history": unit.moves, "status": unit.status, 'x': unit.x, 'y': unit.y}
 
+        pieces = json.dumps(pieces_raw, separators=(',', ': '))
         # Create the sqlite database if it doesn't exist and connect to it. There also might be a cleaner way to do this part.
         if not gamedbpath.is_file():
             game_db = sqlite3.connect('.\games.db')
             c_game_db = game_db.cursor()
-            c_game_db.execute('''CREATE TABLE Games (gametoken text, player1 text, player2 text, turn int, board text)''')
+            c_game_db.execute("CREATE TABLE Games (gametoken text, player_one_name text, player_one_token text, player_one_race text, "
+                                "player_two_name text, player_two_token text, player_two_race text, last_accessed text, move_history text, pieces text, board text)")
+            #c_game_db.execute("CREATE TABLE Pieces (gametoken text, )")
         else:
             game_db = sqlite3.connect('.\games.db')
             c_game_db = game_db.cursor()
@@ -198,14 +208,13 @@ class GameManager(object):
 
         if rowid:
             print("Saving Game")
-            c_game_db.execute("UPDATE Games SET board = (?) WHERE ROWID = (?)",(game_state,rowid[0]))
-            c_game_db.execute("UPDATE Games SET turn = (?) WHERE ROWID = (?)",(turn,rowid[0]))
-            c_game_db.execute("UPDATE Games SET player1 = (?) WHERE ROWID = (?)",(player_one,rowid[0]))
-            c_game_db.execute("UPDATE Games SET player2 = (?) WHERE ROWID = (?)",(player_two,rowid[0]))
+            c_game_db.execute("UPDATE Games SET player_one_name = (?), player_one_token = (?), player_one_race = (?), player_two_name = (?), "
+                                "player_two_token = (?), player_two_race = (?), last_accessed = (?), move_history = (?), pieces = (?), board = (?) WHERE ROWID = (?)",
+                                (player_one_name,player_one_token,player_one_race,player_two_name,player_two_token,player_two_race,last_accessed,move_history,pieces,game_state,rowid[0]))
         else:
             # Assuming this is only done upon game creation, we need to run tests to make sure this is okay
             print("Creating Game")
-            c_game_db.execute("INSERT INTO Games VALUES (?,?,?,?,?)",(game_id,player_one,player_two,0,game_state))
+            c_game_db.execute("INSERT INTO Games VALUES (?,?,?,?,?,?,?,?,?,?,?)",(game_id,player_one_name,player_one_token,player_one_race,player_two_name,player_two_token,player_two_race,last_accessed,move_history,pieces,game_state))
 
         game_db.commit()
         game_db.close()
@@ -223,37 +232,59 @@ class GameManager(object):
             print("Error accessing the database.")
         c_game_db = game_db.cursor()
 
-        c_game_db.execute("SELECT player1 FROM Games WHERE gametoken = (?) ",(game_id,))
-        player_one = c_game_db.fetchone()[0]
-        c_game_db.execute("SELECT player2 FROM Games WHERE gametoken = (?) ",(game_id,))
-        player_two = c_game_db.fetchone()[0]
-        c_game_db.execute("SELECT turn FROM Games WHERE gametoken = (?) ",(game_id,))
-        turn = c_game_db.fetchone()[0]
-        c_game_db.execute("SELECT board FROM Games WHERE gametoken = (?) ",(game_id,))
-        game_state = json.loads(c_game_db.fetchone()[0])
+        c_game_db.execute("SELECT * FROM Games WHERE gametoken = (?) ",(game_id,))
+        game_data = c_game_db.fetchone()
+        
+        game_placeholder = Game(game_data[1],game_data[4])
+        game_placeholder.player_one.name = game_data[1]
+        game_placeholder.player_one.token = game_data[2]
+        game_placeholder.player_one.race = game_data[3]
+        game_placeholder.player_two.name = game_data[4]
+        game_placeholder.player_two.token = game_data[5]
+        game_placeholder.player_two.race = game_data[6]
+        game_placeholder.last_accessed = game_data[7]
+        game_placeholder.move_history = json.loads(game_data[8])
+        '''
+        for unit in json.loads(game_data[9]):
+            if unit['type'] == 'Dwarf':
+                piece = Dwarf(unit['x'], unit['y'], unit['id'])
+                piece.moves = unit['move_history']
+                piece.status = unit['status']
+                game_placeholder.board.units.append(piece)
+            elif unit['type'] == 'Troll':
+                piece = Troll(unit['x'], unit['y'], unit['id'])
+                piece.moves = unit['move_history']
+                piece.status = unit['status']
+                game_placeholder.board.units.append(piece)
+        '''
+        self.read_game_state(game_placeholder,game_data)
 
-        self.active_games[game_id] = Game(player_one,player_two)
-        self.read_game_state(game_id,game_state)
-        self.active_games[game_id].move_history = [None] * turn
-        self.active_games[game_id].player_one.token = player_one
-        self.active_games[game_id].player_two.token = player_two
-
+        self.active_games[game_id] = game_placeholder
         game_db.close()
     
-    def read_game_state(self, game_id, game_state):
-        game_board = self.active_games[game_id].board
-
-        for x, column in enumerate(self.active_games[game_id].board):
-            before = str(self.active_games[game_id].board[x])
+    def read_game_state(self, game_placeholder, game_data):
+        game_state = json.loads(game_data[10])
+        unit = json.loads(game_data[9])
+        game_placeholder.board.units = []
+        for x, column in enumerate(game_placeholder.board):
             for y, square in enumerate(column):
                 if game_state[str(x)][y]['type'] == 'null':
-                    square = 0
+                    game_placeholder.board.squares[x][y] = 0
                 elif game_state[str(x)][y]['type'] == 'open':
-                    square = str(x) + ',' + str(y)
+                    game_placeholder.board.squares[x][y] = str(x) + ',' + str(y)
                 else:
-                    square.type = game_state[str(x)][y]['type']
-                    square.id = game_state[str(x)][y]['id']
-            after = str(self.active_games[game_id].board[x])
+                    if game_state[str(x)][y]['type'] == 'Dwarf':
+                        piece = Dwarf(x, y, game_state[str(x)][y]['id'])
+                        piece.moves = unit[str(game_state[str(x)][y]['id'])]['move_history']
+                        piece.status = unit[str(game_state[str(x)][y]['id'])]['status']
+                        game_placeholder.board.squares[x][y] = piece
+                        game_placeholder.board.units.append(game_placeholder.board.squares[x][y])
+                    elif game_state[str(x)][y]['type'] == 'Troll':
+                        piece = Troll(x, y, game_state[str(x)][y]['id'])
+                        piece.moves = unit[str(game_state[str(x)][y]['id'])]['move_history']
+                        piece.status = unit[str(game_state[str(x)][y]['id'])]['status']
+                        game_placeholder.board.squares[x][y] = piece
+                        game_placeholder.board.units.append(game_placeholder.board.squares[x][y])
 
     def report_game_state(self, game_id):
         """
@@ -292,7 +323,6 @@ class GameManager(object):
                 logging.debug("{}: Game {} found, attempting move from {} to {}.".format(
                     game_token, datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), start, destination))
                 game = self.active_games[game_token]
-                # Added turn by turn saving here, I figured it didn't belong in the "Game" object.
                 self.save_game(game_token)
                 return game.execute_move(player_token, start, destination, test)
             else:

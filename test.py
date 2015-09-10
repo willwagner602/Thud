@@ -6,7 +6,7 @@ import ThudServer
 import os
 #import requests
 import json
-
+from pathlib import Path
 
 class BoardTest(unittest.TestCase):
 
@@ -265,43 +265,134 @@ class GameManagerTest(unittest.TestCase):
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
 
     def test_save_load(self):
-        self.test_game = self.test_game_manager.active_games # For some reason using this method prevents loading, not sure why.
-        initial = str(self.test_game['test_onetest_two1'].board.squares)
+        with open('test_save_load.txt', 'w+') as file:
+            self.test_game = self.test_game_manager
 
-        # Load initial state.
-        self.test_game_manager.load_game('test_onetest_two1')
-        ini_load = str(self.test_game['test_onetest_two1'].board.squares)
+            file.write('Initial')
+            self.log_game(file)
+            initial = str(self.test_game.active_games['test_onetest_two1'].board.squares)
+            initialm = str(self.test_game.active_games['test_onetest_two1'].move_history)
+            
+            del self.test_game.active_games['test_onetest_two1']
+            # Load initial state
+            self.test_game.load_game('test_onetest_two1')
+            
+            file.write('Initial Loaded')
+            self.log_game(file)
+            ini_load = str(self.test_game.active_games['test_onetest_two1'].board.squares)
+            ini_loadm = str(self.test_game.active_games['test_onetest_two1'].move_history
+)
+            self.player_one = self.test_game.active_games['test_onetest_two1'].player_one
+            self.player_two = self.test_game.active_games['test_onetest_two1'].player_two
 
-        self.player_one = self.test_game['test_onetest_two1'].player_one
-        self.player_two = self.test_game['test_onetest_two1'].player_two
-        
-        # Make moves
-        self.test_game['test_onetest_two1'].execute_move(self.player_one.token, (3, 2), (3, 3))
-        self.test_game['test_onetest_two1'].execute_move(self.player_two.token, (6, 6), (5, 5))
-        self.test_game['test_onetest_two1'].execute_move(self.player_one.token, (1, 4), (2, 4))
-        self.test_game['test_onetest_two1'].execute_move(self.player_two.token, (5, 5), (4, 5))
-        self.test_game['test_onetest_two1'].execute_move(self.player_one.token, (0, 5), (2, 5))
-        post_move = str(self.test_game['test_onetest_two1'].board.squares)
-        
-        self.test_game_manager.load_game('test_onetest_two1')
-        post_move_load = str(self.test_game['test_onetest_two1'].board.squares)
-        '''
-        print('Initial')
-        print(initial)
-        print('\r\n')
+            # Make moves
+            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                     "start": [3, 2], "destination": [3, 3]})
+            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
+                     "start": [6, 6], "destination": [5, 5]})
+            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                     "start": [0, 5], "destination": [2, 5]})
+            test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
+            self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
 
-        print('Initial Loaded')
-        print(ini_load)
-        print('\r\n')
-        
-        print('Post Moves')
-        print(post_move)
-        print('\r\n')
+            file.write('Post Move')
+            self.log_game(file)
+            move = str(self.test_game.active_games['test_onetest_two1'].board.squares)
+            movem = str(self.test_game.active_games['test_onetest_two1'].move_history)
 
-        print('Post Moves Loaded')
-        print(post_move_load)
-        print('\r\n')
-        '''
+            del self.test_game.active_games['test_onetest_two1']
+            self.test_game.load_game('test_onetest_two1')
+
+            file.write('Post Move Loaded Board')
+            self.log_game(file)
+            move_load = str(self.test_game.active_games['test_onetest_two1'].board.squares)
+            move_loadm = str(self.test_game.active_games['test_onetest_two1'].move_history
+)
+            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                     "start": [3, 2], "destination": [3, 3]})
+            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
+                     "start": [6, 6], "destination": [5, 5]})
+            self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                     "start": [0, 5], "destination": [2, 5]})
+            test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
+            self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
+
+            file.write('Playing on a loaded board test')
+            self.log_game(file)
+            play_load = str(self.test_game.active_games['test_onetest_two1'].board.squares)
+            play_loadm = str(self.test_game.active_games['test_onetest_two1'].move_history)
+            '''
+            print('Initial')
+            print(initial)
+            print(initialm)
+            print('\r\n')
+
+            print('Initial Loaded')
+            print(ini_load)
+            print(ini_loadm)
+            print('\r\n')
+
+            print('Post Move')
+            print(move)
+            print(movem)
+            print('\r\n')
+
+            print('Post Move Loaded Board')
+            print(move_load)
+            print(move_loadm)
+            print('\r\n')
+
+            print('Playing on a loaded board test')
+            print(play_load)
+            print(play_loadm)
+            print('\r\n')
+            '''
+        file.close()
+    
+    def log_game(self,file):
+        game = self.test_game.active_games['test_onetest_two1']
+        game_array = [game.last_accessed, game.move_history,game.player_one.name, game.player_one.token, game.player_one.race, game.player_two.name, game.player_two.token,
+                        game.player_two.race,game.board.squares,game.board.moves, game.board.piece_id, game.board.units]
+        file.write('\n')
+        file.write(str(game.last_accessed))
+        file.write('\n')
+        file.write(str(game.move_history))
+        file.write('\n')
+        file.write(game.player_one.name)
+        file.write('\n')
+        file.write(game.player_one.token)
+        file.write('\n')
+        file.write(game.player_one.race)
+        file.write('\n')
+        file.write(game.player_two.name)
+        file.write('\n')
+        file.write(game.player_two.token)
+        file.write('\n')
+        file.write(game.player_two.race)
+        file.write('\n')
+        for row in game.board.squares:
+            file.write(str(row))
+            file.write('\n')
+        file.write(str(game.board.piece_id))
+        file.write('\n')
+        for unit in game.board.units:
+            file.write(unit.type) 
+            file.write('\n')
+            file.write(str(unit.x))
+            file.write('\n')
+            file.write(str(unit.y))
+            file.write('\n')
+            file.write(str(unit.moves)) # need to save and load this explicitly
+            file.write('\n')
+            file.write(unit.status) # need to save and load this explicitly
+            file.write('\n')
+            file.write(str(unit.id))
+            file.write('\n')
+        file.write('\n')
+        file.write('\n')
+        file.write('\n')
+        return game_array
+
 class GameTest(unittest.TestCase):
 
     def setUp(self):
