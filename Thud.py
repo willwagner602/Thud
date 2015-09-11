@@ -161,18 +161,19 @@ class GameManager(object):
         try:
             game = self.active_games[game_token]
             if game.player_one.token == player_one_token and game.player_two.token == player_two_token:
-                # todo: push game data to database, remove game from the list of active games
+                self.save_game(game_token)
+                del self.active_games[game_token]
                 return True
         except KeyError:
             return False
 
     def save_game(self, game_id):
         '''
-        Manages game saves. Saves gametoken, player1, player2, turn number, and the game board state to sql database.
+        Manages saving active games to a database.
         Executed upon game creation in Thud.GameManager.start_game and every turn in Thud.GameManager.process_move.
-        It might be possible to ignore the json conversion entirely and load the string from self.report_game_state(game_id) directly
-        to the database. Although serializing data into a single cell is generally frowned upon for SQL, I think it's okay to do it in
-        this case because there's never an instance where we'd only want to retrieve parts of the board.
+        Although serializing data into a single cell is generally frowned upon for SQL, I think it's okay
+        to do it in this case because there's never an instance where we'd only want to retrieve parts of
+        the board. It might be worth investigating other database systems.
         '''
         # ToDo: 1) Figure out how to handle changing players in a game
         # 2) Break up repetitive work into new methods (e.g. loading database). 3) Exception catching for: connecting to database, writing to database, closing database.
@@ -185,12 +186,12 @@ class GameManager(object):
         player_two_race = self.active_games[game_id].player_two.race
         last_accessed = self.active_games[game_id].last_accessed
         move_history = json.dumps(self.active_games[game_id].move_history)
-        game_state = json.dumps(self.report_game_state(game_id), separators=(',', ': ')) # Production: Compact encoding.
+        game_state = json.dumps(self.report_game_state(game_id), separators=(',', ': '))
         pieces_raw = {}
         for unit in self.active_games[game_id].board.units:
             pieces_raw[unit.id] = {"type": unit.type, "move_history": unit.moves, "status": unit.status, 'x': unit.x, 'y': unit.y}
-
         pieces = json.dumps(pieces_raw, separators=(',', ': '))
+
         # Create the sqlite database if it doesn't exist and connect to it. There also might be a cleaner way to do this part.
         if not gamedbpath.is_file():
             game_db = sqlite3.connect('.\games.db')
@@ -217,15 +218,15 @@ class GameManager(object):
     
     def load_game(self, game_id):
         '''
-        Retrieves player tokens the turn number, and board from database. We need to write a read_game_state
-        method that does the reverse of GameManager.report_game_state so that the board is usable by the game engine.
+        Retrieves saved game data from the database, rebuilds the game, and places it in the active game list of the game 
+        manager that called it.
         '''
         # ToDo: In addition to stuff from save_game: Exception catching for: can't find requested game token, closing
         # database, converting game board to engine readable.
         try:
             game_db = sqlite3.connect('.\games.db')
         except:
-            print("Error accessing the database.")
+            logging.debug("Unable to load the database.")
         c_game_db = game_db.cursor()
 
         c_game_db.execute("SELECT * FROM Games WHERE gametoken = (?) ",(game_id,))
@@ -259,16 +260,12 @@ class GameManager(object):
                 else:
                     if game_state[str(x)][y]['type'] == 'Dwarf':
                         piece = Dwarf(x, y, game_state[str(x)][y]['id'])
-                        piece.moves = unit[str(game_state[str(x)][y]['id'])]['move_history']
-                        piece.status = unit[str(game_state[str(x)][y]['id'])]['status']
-                        game_placeholder.board.squares[x][y] = piece
-                        game_placeholder.board.units.append(game_placeholder.board.squares[x][y])
                     elif game_state[str(x)][y]['type'] == 'Troll':
                         piece = Troll(x, y, game_state[str(x)][y]['id'])
-                        piece.moves = unit[str(game_state[str(x)][y]['id'])]['move_history']
-                        piece.status = unit[str(game_state[str(x)][y]['id'])]['status']
-                        game_placeholder.board.squares[x][y] = piece
-                        game_placeholder.board.units.append(game_placeholder.board.squares[x][y])
+                    piece.moves = unit[str(game_state[str(x)][y]['id'])]['move_history']
+                    piece.status = unit[str(game_state[str(x)][y]['id'])]['status']
+                    game_placeholder.board.squares[x][y] = piece
+                    game_placeholder.board.units.append(game_placeholder.board.squares[x][y])
 
     def report_game_state(self, game_id):
         """
