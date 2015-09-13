@@ -347,6 +347,8 @@ class GameManager(object):
             return {"game": game_token, "board": self.report_game_state(game_token),
                     "player_one": player_one_token}
 
+    #def race_query(self, match_player, player_id)
+
     def process_socket_message(self, message, player_id):
         action = message[0]
         message = message[1]
