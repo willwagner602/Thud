@@ -45,8 +45,9 @@ To start a game, POST "/start" with the following JSON data in the body:
          "player_one": "Will",
          "player_two": "Tom"}
 
-     This returns the entire board state, along with tokens for each player so the server can ensure you're moving at
-     the correct times:
+This returns the entire board state, along with tokens for each player so the server can 
+ensure you're moving at the correct times:
+
         {"game": "game_token",
         "player_one": "player_one_token",
         "player_two": "player_two_token",
@@ -54,23 +55,24 @@ To start a game, POST "/start" with the following JSON data in the body:
 
 To execute a move, POST "/move" with the following JSON data in the body:
 
-    Making a move:
+Making a move:
+
+    {"game": "correct_game_token",
+    "player":"correct_player_token",
+    "start": [x, y],
+    "destination": [x, y]}
+
+This returns either True, a dictionary of pieces that are removed, 
+or False if the move fails:
+   
+If move is a valid move, returns true:
+    True
     
-        {"game": "correct_game_token",
-        "player":"correct_player_token",
-        "start": [x, y],
-        "destination": [x, y]}
+If move is a valid attack, the x,y coordinates of any possible targets:
+    [[target_x, target_y]]
     
-    This returns either True, a dictionary of pieces that are removed, or False if the move fails:
-       
-        If move is a valid move, returns true:
-            True
-        
-        If move is a valid attack, the x,y coordinates of any possible targets:
-            [[target_x, target_y]]
-        
-        If move is invalid, returns false:
-            False
+If move is invalid, returns false:
+    False
 
 
 To validate a move, meaning ensure a move is valid without actually executing that move, POST "/move/validate" with the 
@@ -83,4 +85,5 @@ game logic in your UI layer.
 The weboscket connection is reached at "/match/playername".  You may not connect with a playername that is already
 connected.  The websocket layer is simply a wrapper around the HTTP POST JSON data described above, where the endpoint
 (i.e. "/move") is included as the key, and the JSON data is the value. i.e.:
+    
     {"move": {JSON_Move_Data}}
