@@ -66,12 +66,15 @@ This returns either True, a dictionary of pieces that are removed,
 or False if the move fails:
    
 If move is a valid move, returns true:
+    
     True
     
 If move is a valid attack, the x,y coordinates of any possible targets:
+    
     [[target_x, target_y]]
     
 If move is invalid, returns false:
+    
     False
 
 
