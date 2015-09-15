@@ -215,6 +215,7 @@ class GameManager(object):
 
         game_db.commit()
         game_db.close()
+        return True
     
     def load_game(self, game_id):
         '''
@@ -246,7 +247,8 @@ class GameManager(object):
 
         self.active_games[game_id] = game_placeholder
         game_db.close()
-    
+        return True
+
     def read_game_state(self, game_placeholder, game_data):
         game_state = json.loads(game_data[10])
         unit = json.loads(game_data[9])
@@ -346,8 +348,6 @@ class GameManager(object):
             self.update_opposite_player(game_token, player_id, player_two_data)
             return {"game": game_token, "board": self.report_game_state(game_token),
                     "player_one": player_one_token}
-
-    #def race_query(self, match_player, player_id)
 
     def process_socket_message(self, message, player_id):
         action = message[0]
