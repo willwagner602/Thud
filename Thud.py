@@ -313,6 +313,14 @@ class GameManager(object):
         except KeyError as e:
             return "Bad JSON data {} as part of {}.".format(e, move_data)
 
+    def assign_team(self):
+        race = random.choice('01')
+        if race == "0":
+            return "Troll", "Dwarf"
+        elif race == "1":
+            return "Dwarf", "Troll"
+
+
     def process_start(self, start_data):
         try:
             player_one = start_data["player_one"]
@@ -339,15 +347,22 @@ class GameManager(object):
         elif player == game.player_two.name:
             game.player_one.websocket.send_message(message)
 
-    def process_match_start(self, match_player, player_id):
-        if match_player in self.free_players and player_id in self.free_players:
-            game_token, player_one_token, player_two_token = self.start_game(player_id, match_player)
-            self.assign_sockets(game_token, player_id, match_player)
-            player_two_data = {"game": game_token, "board": self.report_game_state(game_token),
-                    "player_one": player_one_token}
-            self.update_opposite_player(game_token, player_id, player_two_data)
-            return {"game": game_token, "board": self.report_game_state(game_token),
-                    "player_one": player_one_token}
+    def process_match_start(self, match_player, requesting_player):
+        if match_player in self.free_players and requesting_player in self.free_players:
+            game_token, player_one_token, player_two_token = self.start_game(requesting_player, match_player)
+            self.assign_sockets(game_token, requesting_player, match_player)
+            player_one_race, player_two_race = self.assign_team()
+            match_player_data = {"start":
+                                     {"game": game_token,
+                                      "board": self.report_game_state(game_token),
+                                      "player": player_one_token,
+                                      "race": player_one_race}
+            }
+            self.update_opposite_player(game_token, requesting_player, match_player_data)
+            return {"game": game_token,
+                    "board": self.report_game_state(game_token),
+                    "player": player_two_token,
+                    "race": player_two_race}
 
     def process_socket_message(self, message, player_id):
         action = message[0]

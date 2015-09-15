@@ -32,17 +32,29 @@ of a shove.
 
 # Thud Gameserver API
 
-This backend is run on a gameserver at *Not Hosted Yet*.
+This backend is run on a gameserver at 192.241.198.50:12000.
 
+There are two possible methods for a client to start a game.  Using HTTP POST you can start a game for multiple players
+on the same computer.  Using a websocket connection you can allow a player to connect and choose other players to match
+with.
+
+##### HTTP POST
 To start a game, POST "/start" with the following JSON data in the body:
-Start game:
-    {"game": "begin",
-     "player_one": "Will",
-     "player_two": "Tom"}
+    Start game:
+        {"game": "begin",
+         "player_one": "Will",
+         "player_two": "Tom"}
 
-     This returns
+This returns the entire board state, along with tokens for each player so the server can 
+ensure you're moving at the correct times:
+
+        {"game": "game_token",
+        "player_one": "player_one_token",
+        "player_two": "player_two_token",
+        "board": {"row_num": [row_data]}}
 
 To execute a move, POST "/move" with the following JSON data in the body:
+
 Making a move:
 
     {"game": "correct_game_token",
@@ -50,20 +62,28 @@ Making a move:
     "start": [x, y],
     "destination": [x, y]}
 
-This returns
+This returns either True, a dictionary of pieces that are removed, 
+or False if the move fails:
+   
+If move is a valid move, returns true:
+    True
+    
+If move is a valid attack, the x,y coordinates of any possible targets:
+    [[target_x, target_y]]
+    
+If move is invalid, returns false:
+    False
 
-    {"game": "game_token",
-    "player_one": "player_one_token",
-    "player_two": "player_two_token",
-    "board": {"row_num": [row_data]}}
 
+To validate a move, meaning ensure a move is valid without actually executing that move, POST "/move/validate" with the 
+same JSON you would use for "/move". This does not modify board state in any way, but means you don't need to implement
+game logic in your UI layer.
 
-To validate a move, POST "/move/validate" with the following JSON data in the body:
-Making a move:
+        
+##### Websockets for single players
 
-    {"game": "correct_game_token",
-    "player":"correct_player_token",
-    "start": [x, y],
-    "destination": [x, y]}
-
-This returns
+The weboscket connection is reached at "/match/playername".  You may not connect with a playername that is already
+connected.  The websocket layer is simply a wrapper around the HTTP POST JSON data described above, where the endpoint
+(i.e. "/move") is included as the key, and the JSON data is the value. i.e.:
+    
+    {"move": {JSON_Move_Data}}

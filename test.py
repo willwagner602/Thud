@@ -99,13 +99,18 @@ class BoardTest(unittest.TestCase):
 class GameManagerTest(unittest.TestCase):
 
     class MockSocket(object):
-            pass
+
+        def send_message(self, message):
+            self.message = message
+            return True
 
     def setUp(self):
         self.test_game_manager = Thud.GameManager()
         self.game_token, self.player_one_token, self.player_two_token = self.test_game_manager.start_game(
             'test_one', 'test_two'
         )
+        self.socket_one = self.MockSocket()
+        self.socket_two = self.MockSocket()
 
     def array_data_helper(self, live_data, test_data, test_object=""):
         if test_object:
@@ -318,41 +323,56 @@ class GameManagerTest(unittest.TestCase):
         return game_array
 
     def test_add_match_player(self):
-        socket_one = self.MockSocket()
-        socket_two = self.MockSocket()
         self.assertEqual(self.test_game_manager.free_players, {})
-        self.test_game_manager.add_match_player("Will", socket_one)
-        self.assertEqual(self.test_game_manager.free_players, {"Will": socket_one})
-        self.test_game_manager.add_match_player("Tom", socket_two)
-        self.assertEqual(self.test_game_manager.free_players, {"Will": socket_one, "Tom": socket_two})
+        self.test_game_manager.add_match_player("Will", self.socket_one)
+        self.assertEqual(self.test_game_manager.free_players, {"Will": self.socket_one})
+        self.test_game_manager.add_match_player("Tom", self.socket_two)
+        self.assertEqual(self.test_game_manager.free_players, {"Will": self.socket_one, "Tom": self.socket_two})
 
     def test_report_free_players(self):
-        socket_one = self.MockSocket()
-        socket_two = self.MockSocket()
         self.assertEqual(self.test_game_manager.report_free_players(), [])
-        self.test_game_manager.add_match_player("Will", socket_one)
+        self.test_game_manager.add_match_player("Will", self.socket_one)
         self.assertEqual(self.test_game_manager.report_free_players(), ["Will"])
-        self.test_game_manager.add_match_player("Tom", socket_two)
+        self.test_game_manager.add_match_player("Tom", self.socket_two)
         for player in self.test_game_manager.report_free_players():
             self.assertTrue(player in ["Will", "Tom"])
 
     def test_add_player_to_server(self):
-        socket = self.MockSocket()
-        socket_two = self.MockSocket()
-        self.assertEqual(self.test_game_manager.add_player_to_server("Will", socket), [])
-        self.assertEqual(self.test_game_manager.add_player_to_server("Tom", socket_two), ["Will"])
+        self.assertEqual(self.test_game_manager.add_player_to_server("Will", self.socket_one), [])
+        self.assertEqual(self.test_game_manager.add_player_to_server("Tom", self.socket_two), ["Will"])
 
     def test_assign_sockets_both_players(self):
-        socket = self.MockSocket()
-        socket_two = self.MockSocket()
         # mock including the sockets in the free players list
-        self.test_game_manager.free_players["Will"] = socket
-        self.test_game_manager.free_players["Tom"] = socket_two
+        self.test_game_manager.free_players["Will"] = self.socket_one
+        self.test_game_manager.free_players["Tom"] = self.socket_two
         self.test_game_manager.assign_sockets(self.game_token, "Will", "Tom")
         will_socket = self.test_game_manager.active_games[self.game_token].player_one.websocket
         tom_socket = self.test_game_manager.active_games[self.game_token].player_two.websocket
-        self.assertEqual(will_socket, socket)
-        self.assertEqual(tom_socket, socket_two)
+        self.assertEqual(will_socket, self.socket_one)
+        self.assertEqual(tom_socket, self.socket_two)
+
+    def test_assign_team(self):
+        test_value = self.test_game_manager.assign_team()
+        self.assertTrue(("Troll", "Dwarf") == test_value or ("Dwarf", "Troll") == test_value)
+
+    def test_process_match_start(self):
+        self.test_game_manager.add_match_player("Will", self.socket_one)
+        self.test_game_manager.add_match_player("Tom", self.socket_two)
+        player_one_response = self.test_game_manager.process_match_start("Tom", "Will")
+        player_one_game_token = player_one_response["game"]
+        player_one_game = self.test_game_manager.active_games[player_one_game_token]
+        self.assertEqual(player_one_response["game"], player_one_game_token)
+        self.assertEqual(player_one_response["board"], self.test_game_manager.report_game_state(player_one_game_token))
+        self.assertEqual(player_one_response["player"], player_one_game.player_two.token)
+        self.assertTrue(player_one_response["race"] in ("Troll", "Dwarf"))
+        player_two_response = self.socket_two.message["start"]
+        player_two_game_token = player_two_response["game"]
+        self.assertEqual(player_one_game_token, player_two_game_token)
+        player_two_game = self.test_game_manager.active_games[player_two_game_token]
+        self.assertEqual(player_one_game, player_two_game)
+        self.assertEqual(player_two_response["board"], self.test_game_manager.report_game_state(player_two_game_token))
+        self.assertTrue(player_two_response["race"] in ("Troll", "Dwarf"))
+        self.assertFalse(player_one_response["race"] == player_two_response["race"])
 
 
 class GameTest(unittest.TestCase):
