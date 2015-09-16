@@ -140,9 +140,10 @@ class GameManagerTest(unittest.TestCase):
         self.assertFalse(self.game_token == game_token_2)
 
     def test_report_game_state(self):
-        test_data = open("api_test.json").read()
-        live_data = self.test_game_manager.report_game_state(self.game_token)
-        self.array_data_helper(live_data, test_data, "base state")
+        with open("api_test.json") as file:
+            test_data = file.read()
+            live_data = self.test_game_manager.report_game_state(self.game_token)
+            self.array_data_helper(live_data, test_data, "base state")
 
     def test_process_input_start_game(self):
         test_start = {"game": "begin",
@@ -205,17 +206,19 @@ class GameManagerTest(unittest.TestCase):
     def test_modified_game_state(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                                 "start": [5, 0], "destination": [5, 13]}
-        test_data = open("api_test.json").read()
-        # guard test to make the move and ensure it was successful
-        self.assertTrue(self.test_game_manager.process_move(test_move))
-        live_data = self.test_game_manager.report_game_state(self.game_token)
-        self.array_data_helper(live_data, test_data, "first move")
+        with open("api_test.json") as file:
+            test_data = file.read()
+            # guard test to make the move and ensure it was successful
+            self.assertTrue(self.test_game_manager.process_move(test_move))
+            live_data = self.test_game_manager.report_game_state(self.game_token)
+            self.array_data_helper(live_data, test_data, "first move")
 
     def test_process_move_failure_troll_moves_first(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                      "start": [6, 6], "destination": [5, 6]}
-        test_data = open("api_test.json").read()
-        self.assertFalse(self.test_game_manager.process_move(test_move))
+        with open("api_test.json") as file:
+            test_data = file.read()
+            self.assertFalse(self.test_game_manager.process_move(test_move))
 
     def test_troll_move_failure(self):
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((10, 13), (8, 13))))
@@ -263,6 +266,64 @@ class GameManagerTest(unittest.TestCase):
         self.assertEqual(self.test_game_manager.process_move(self.dwarf_move_helper((8, 12), (8, 9)), test=True),
                          [(8, 9)])
         self.array_data_helper(self.test_game_manager.report_game_state(self.game_token), board_state)
+
+    def test_save_load(self):
+        self.test_game = self.test_game_manager
+        
+        initial = self.log_game()
+
+        del self.test_game.active_games['test_onetest_two1']
+        self.test_game.load_game('test_onetest_two1')
+
+        ini_load = self.log_game()
+
+        self.player_one = self.test_game.active_games['test_onetest_two1'].player_one
+        self.player_two = self.test_game.active_games['test_onetest_two1'].player_two
+
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [3, 2], "destination": [3, 3]})
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
+                    "start": [6, 6], "destination": [5, 5]})
+        # Save this data, should be the same as move_load
+        load_check = self.log_game()
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [0, 5], "destination": [2, 5]})
+        test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
+        self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
+
+        first_move = self.log_game()
+
+
+        del self.test_game.active_games['test_onetest_two1']
+        self.test_game.load_game('test_onetest_two1')
+
+        first_move_load = self.log_game()
+
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [3, 2], "destination": [3, 3]})
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_two.token,
+                    "start": [6, 6], "destination": [5, 5]})
+        self.test_game.process_move({"game": 'test_onetest_two1', "player": self.player_one.token,
+                    "start": [0, 5], "destination": [2, 5]})
+        test_troll = self.test_game.active_games['test_onetest_two1'].board.get_piece(5, 5)
+        self.test_game.active_games['test_onetest_two1'].board.capture_piece(test_troll)
+
+        second_move = self.log_game()
+        for x in range(0, len(initial)):
+            self.assertTrue(initial[x] == ini_load[x])
+        for x in range(0, len(initial)):
+            self.assertTrue(load_check[x] == first_move_load[x])
+        for x in range(0, len(initial)):
+            self.assertTrue(first_move[x] == second_move[x])
+    
+    def log_game(self):
+        # Saves game state
+        game = self.test_game.active_games['test_onetest_two1']
+        game_array = [json.dumps(game.move_history),str(game.player_one.name), str(game.player_one.token), str(game.player_one.race), str(game.player_two.name), str(game.player_two.token),
+                        str(game.player_two.race),str(game.board.squares),{}]
+        for unit in game.board.units:
+            game_array[8][str(unit.id)] = [str(unit.type), str(unit.x), str(unit.y), json.dumps(unit.moves), str(unit.status)]
+        return game_array
 
     def test_add_match_player(self):
         self.assertEqual(self.test_game_manager.free_players, {})

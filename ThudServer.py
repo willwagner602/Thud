@@ -59,6 +59,20 @@ class GetBoardState(BaseHandler):
         self.write(tornado.escape.json_encode(response))
 
 
+class SaveGame(BaseHandler):
+    def post(self):
+        game = tornado.escape.json_decode(self.request.body)
+        response = game_manager.process_save(game)
+        self.write(tornado.escape.json_encode(response))
+
+
+class LoadGame(BaseHandler):
+    def post(self):
+        game = tornado.escape.json_decode(self.request.body)
+        response = game_manager.process_load(game)
+        self.write(tornado.escape.json_encode(response))
+
+
 class EndGame(BaseHandler):
     def post(self):
         end_data = tornado.escape.json_decode(self.request.body)
@@ -118,6 +132,8 @@ def run_server(port):
         (r"/move", ExecuteMove),
         (r"/move/validate", ValidateMove),
         (r"/game", GetBoardState),
+        (r"/save", SaveGame),
+        (r"/load", LoadGame),
         (r"/match/([A-Za-z0-9]+)", PlayerConnection),
     ])
 
