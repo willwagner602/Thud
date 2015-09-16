@@ -3,7 +3,6 @@ __author__ = 'wwagner'
 import unittest
 import json
 import requests
-import subprocess
 
 
 class LocalServerTest(unittest.TestCase):
@@ -102,10 +101,10 @@ class LocalServerTest(unittest.TestCase):
         self.assertEqual(data, False)
 
     def test_save_load(self):
-        save_data = {'game' : self.game}
+        save_data = {'game': self.game}
         data = json.loads(requests.post(self.save_url, json.dumps(save_data)).text)
         self.assertEqual(data, True)
-        load_data = {'game' : self.game}
+        load_data = {'game': self.game}
         data = json.loads(requests.post(self.load_url, json.dumps(load_data)).text)
         self.assertEqual(data, True)
 
