@@ -13,6 +13,8 @@ class LocalServerTest(unittest.TestCase):
         self.start_url = 'http://127.0.0.1:12000/start'
         self.move_url = 'http://127.0.0.1:12000/move'
         self.validate_url = 'http://127.0.0.1:12000/move/validate'
+        self.save_url = 'http://127.0.0.1:12000/save'
+        self.load_url = 'http://127.0.0.1:12000/load'
         self.match_url = 'http://127.0.0.1:12000/match'
         start_data = json.dumps({"game": "start", "player_one": "Will", "player_two": "Tom"})
         post = requests.post(self.start_url, start_data)
@@ -23,9 +25,10 @@ class LocalServerTest(unittest.TestCase):
         self.game = data['game']
 
     def test_start_game(self):
-        test_board = json.loads(open('api_test.json').read())["base state"]
-        self.assertEqual(self.board, test_board)
-
+        with open("api_test.json") as file:
+            test_board = json.loads(file.read())["base state"]
+            self.assertEqual(self.board, test_board)
+        
     def test_validate_move(self):
         # test simulated moves for checking moves/captures to display in the UI
         move_data = {"game": self.game, "player": self.player_one,
@@ -98,6 +101,14 @@ class LocalServerTest(unittest.TestCase):
         data = json.loads(requests.post(self.move_url, json.dumps(first_move_data)).text)
         self.assertEqual(data, False)
 
+    def test_save_load(self):
+        save_data = {'game' : self.game}
+        data = json.loads(requests.post(self.save_url, json.dumps(save_data)).text)
+        self.assertEqual(data, True)
+        load_data = {'game' : self.game}
+        data = json.loads(requests.post(self.load_url, json.dumps(load_data)).text)
+        self.assertEqual(data, True)
+
     def test_match_add_player(self):
         # can't use a POST here, need to open a websocket
         pass
@@ -132,8 +143,9 @@ class LiveServerTest(unittest.TestCase):
         self.game = data['game']
 
     def test_start_game(self):
-        test_board = json.loads(open('api_test.json').read())["base state"]
-        self.assertEqual(self.board, test_board)
+        with open("api_test.json") as file:
+            test_board = json.loads(file.read())["base state"]
+            self.assertEqual(self.board, test_board)
 
     def test_validate_move(self):
         # test simulated moves for checking moves/captures to display in the UI
