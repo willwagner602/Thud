@@ -62,14 +62,14 @@ class GetBoardState(BaseHandler):
 class SaveGame(BaseHandler):
     def post(self):
         game = tornado.escape.json_decode(self.request.body)
-        response = game_manager.save_game(game)
+        response = game_manager.process_save(game)
         self.write(tornado.escape.json_encode(response))
 
 
 class LoadGame(BaseHandler):
     def post(self):
         game = tornado.escape.json_decode(self.request.body)
-        response = game_manager.load_game(game)
+        response = game_manager.process_load(game)
         self.write(tornado.escape.json_encode(response))
 
 

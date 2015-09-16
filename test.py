@@ -140,9 +140,10 @@ class GameManagerTest(unittest.TestCase):
         self.assertFalse(self.game_token == game_token_2)
 
     def test_report_game_state(self):
-        test_data = open("api_test.json").read()
-        live_data = self.test_game_manager.report_game_state(self.game_token)
-        self.array_data_helper(live_data, test_data, "base state")
+        with open("api_test.json") as file:
+            test_data = file.read()
+            live_data = self.test_game_manager.report_game_state(self.game_token)
+            self.array_data_helper(live_data, test_data, "base state")
 
     def test_process_input_start_game(self):
         test_start = {"game": "begin",
@@ -205,17 +206,19 @@ class GameManagerTest(unittest.TestCase):
     def test_modified_game_state(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                                 "start": [5, 0], "destination": [5, 13]}
-        test_data = open("api_test.json").read()
-        # guard test to make the move and ensure it was successful
-        self.assertTrue(self.test_game_manager.process_move(test_move))
-        live_data = self.test_game_manager.report_game_state(self.game_token)
-        self.array_data_helper(live_data, test_data, "first move")
+        with open("api_test.json") as file:
+            test_data = file.read()
+            # guard test to make the move and ensure it was successful
+            self.assertTrue(self.test_game_manager.process_move(test_move))
+            live_data = self.test_game_manager.report_game_state(self.game_token)
+            self.array_data_helper(live_data, test_data, "first move")
 
     def test_process_move_failure_troll_moves_first(self):
         test_move = {"game": self.game_token, "player": self.player_one_token,
                      "start": [6, 6], "destination": [5, 6]}
-        test_data = open("api_test.json").read()
-        self.assertFalse(self.test_game_manager.process_move(test_move))
+        with open("api_test.json") as file:
+            test_data = file.read()
+            self.assertFalse(self.test_game_manager.process_move(test_move))
 
     def test_troll_move_failure(self):
         self.assertTrue(self.test_game_manager.process_move(self.dwarf_move_helper((10, 13), (8, 13))))

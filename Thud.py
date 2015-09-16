@@ -286,6 +286,22 @@ class GameManager(object):
             board_state[str(x)] = row_state
         return board_state
 
+    def process_save(self, save_data):
+        try:
+            game_id = save_data['game']
+            saved = self.save_game(game_id)
+            return saved
+        except KeyError as e:
+            return "Bad JSON data {} as part of {}.".format(e, save_data)
+
+    def process_load(self, load_data):
+        try:
+            game_id = load_data['game']
+            loaded = self.save_game(game_id)
+            return loaded
+        except KeyError as e:
+            return "Bad JSON data {} as part of {}.".format(e, load_data)
+        
     def process_move(self, move_data, test=False):
         """
         Making a move:
