@@ -143,7 +143,7 @@ class GameManager(object):
         self.active_games[game_token] = game
         self.save_game(game_token)
         logging.debug("{}: Game {} start with players {}, {}".format(
-            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), game_token, game.player_one.token,
+            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), game_token, game.player_one.token,
             game.player_two.token))
         return game_token, game.player_one.token, game.player_two.token
 
@@ -318,13 +318,13 @@ class GameManager(object):
             destination = move_data["destination"]
             if game_token in self.active_games:
                 logging.debug("{}: Game {} found, attempting move from {} to {}.".format(
-                    game_token, datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), start, destination))
+                    game_token, datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), start, destination))
                 game = self.active_games[game_token]
                 self.save_game(game_token)
                 return game.execute_move(player_token, start, destination, test)
             else:
                 logging.debug("{}: Game {} not found.".format(game_token,
-                                                              datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+                                                              datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
                 return False
         except KeyError as e:
             return "Bad JSON data {} as part of {}.".format(e, move_data)
@@ -369,11 +369,11 @@ class GameManager(object):
             self.assign_sockets(game_token, requesting_player, match_player)
             player_one_race, player_two_race = self.assign_team()
             match_player_data = {"start":
-                                     {"game": game_token,
-                                      "board": self.report_game_state(game_token),
-                                      "player": player_one_token,
-                                      "race": player_one_race}
-            }
+                                    {"game": game_token,
+                                     "board": self.report_game_state(game_token),
+                                     "player": player_one_token,
+                                     "race": player_one_race}
+                                 }
             self.update_opposite_player(game_token, requesting_player, match_player_data)
             return {"game": game_token,
                     "board": self.report_game_state(game_token),
@@ -384,7 +384,7 @@ class GameManager(object):
         action = message[0]
         message = message[1]
         logging.debug("{}: Processing socket action {} with message {}.".format(
-            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), action, message))
+            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), action, message))
         if action == "match":
             return ["start", self.process_match_start(message, player_id)]
         elif action == "move":
@@ -480,19 +480,19 @@ class Game(object):
         # Dwarf player starts turn 1, players alternate for rest of game
         player_one_turn = (len(self.move_history) + 1) % 2 > 0
         if player_one_turn and player_token == self.player_one.token:
-            logging.debug("{}: Validated Dwarf player.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+            logging.debug("{}: Validated Dwarf player.".format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
             if self.player_one.race == piece.type:
                 return True
             else:
                 logging.debug("{}: Dwarf player attempted to move Troll.".format(
-                    datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+                    datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
         elif not player_one_turn and player_token == self.player_two.token:
-            logging.debug("{}: Validated Troll player.".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+            logging.debug("{}: Validated Troll player.".format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
             if self.player_two.race == piece.type:
                 return True
             else:
                 logging.debug("{}: Troll player attempted to move Dwarf.".format(
-                    datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S')))
+                    datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')))
         return False
 
     def validate_clear_path(self, piece, destination):
@@ -504,7 +504,7 @@ class Game(object):
         :return bool:
         """
         logging.debug("{}: Checking clear path from {} at {},{} to {}".format(
-            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, piece.x, piece.y, str(destination)))
+            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), piece, piece.x, piece.y, str(destination)))
         if isinstance(destination, Troll):
             destination_x, destination_y = destination.x, destination.y
         else:
@@ -527,7 +527,6 @@ class Game(object):
             x_travel = [piece.x for x in range(0, len(y_travel))]
         if not y_travel:
             logging.debug("Vertical move calculated along y == {}".format(piece.y))
-            # ToDo: figure out if this is necessary as a list comprehension
             y_travel = [piece.y for x in range(0, len(x_travel))]
         # move is only 1 square, is already validated by earlier functions
         if not x_travel and not y_travel:
@@ -586,7 +585,7 @@ class Game(object):
         delta_y = piece.y - y
 
         logging.info("{}: Checking valid attack at {},{}.".format(
-            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), x, y))
+            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), x, y))
 
         if delta_x > 0:
             x_check = list(range(piece.x + 1, piece.x + delta_x, 1))
@@ -636,7 +635,7 @@ class Game(object):
         x, y = target
         single_space_move = (abs(piece.x - x) <= 1 and abs(piece.y - y) <= 1)
         logging.debug("{}: Validating troll move or attack at {},{}. Single Space Move is {}".format(
-            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece.x, piece.y, single_space_move))
+            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), piece.x, piece.y, single_space_move))
         if attacks and single_space_move:
             logging.debug("Checking single space attack at {},{} against {}.".format(x, y, ','.join(map(str, attacks))))
             return attacks
@@ -668,7 +667,7 @@ class Game(object):
             for y_value in range(dest_y-1, dest_y+2):
                 check_squares.append((x_value, y_value))
         logging.debug("{}: Checking for dwarves at {}.".format(
-            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'),', '.join(map(str, check_squares))))
+            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'),', '.join(map(str, check_squares))))
         for x, y in check_squares:
             try:
                 square = self.board[x][y]
@@ -719,7 +718,7 @@ class Game(object):
         if self.validate_destination(destination):
             target = self.board.get_piece(dest_x, dest_y)
             logging.debug("{}: Validating {} at {}, {} destination of {}, {}.".format(
-                datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), piece, x, y, dest_x, dest_y
+                datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), piece, x, y, dest_x, dest_y
             ))
 
             # is a dwarf attack or invalid, because only dwarves can move on top of another piece
@@ -779,15 +778,15 @@ class Game(object):
             else:
                 dest_x, dest_y = destination
                 logging.debug("{}: Invalid move from {}, {} to {}, {}".format(
-                    datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'), x, y, dest_x, dest_y))
+                    datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), x, y, dest_x, dest_y))
                 return False
         elif not piece:
-            logging.debug("{}: Invalid piece at {}, {}".format(datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'),
+            logging.debug("{}: Invalid piece at {}, {}".format(datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'),
                                                                x, y))
             return False
         else:
             logging.debug("{}: Invalid player id {} moving piece at {}, {}".format(player_token,
-                                                            datetime.datetime.now().strftime('%d/%m/%y %H:%M:%S'),x, y))
+                                                            datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'),x, y))
             return False
 
     def move(self, piece, destination):

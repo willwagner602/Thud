@@ -96,10 +96,10 @@ class PlayerConnection(tornado.websocket.WebSocketHandler):
 
     def open(self, player_id):
         self.player_id = player_id
-        logging.debug("{}: Websocket opened for player {}".format(datetime.now().strftime('%d/%m/%y %H:%M:%S'),
+        logging.debug("{}: Websocket opened for player {}".format(datetime.now().strftime('%m/%d/%Y %H:%M:%S'),
                                                                   player_id))
         player_list = game_manager.add_player_to_server(self.player_id, self)
-        logging.debug("{}: Reported player list {}".format(datetime.now().strftime('%d/%m/%y %H:%M:%S'),
+        logging.debug("{}: Reported player list {}".format(datetime.now().strftime('%m/%d/%Y %H:%M:%S'),
                                                                   player_list))
         if player_list != False:
             self.write_message(tornado.escape.json_encode(["list", player_list]))
@@ -110,7 +110,7 @@ class PlayerConnection(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         response = game_manager.process_socket_message(tornado.escape.json_decode(message), self.player_id)
         logging.debug("{}: Message {} received, response {}.".format(
-            datetime.now().strftime('%d/%m/%y %H:%M:%S'),
+            datetime.now().strftime('%m/%d/%Y %H:%M:%S'),
             message, response))
         self.write_message(tornado.escape.json_encode(response))
 
@@ -119,7 +119,7 @@ class PlayerConnection(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         game_manager.remove_player_from_server(self.player_id)
-        logging.debug("{}: Websocket closed for player {}".format(datetime.now().strftime('%d/%m/%y %H:%M:%S'),
+        logging.debug("{}: Websocket closed for player {}".format(datetime.now().strftime('%m/%d/%Y %H:%M:%S'),
                                                                   self.player_id))
 
 
