@@ -16,7 +16,7 @@ def get_version(request):
     return HttpResponse(json.dumps(response))
 
 
-def get_game_by_id_handler(request):
+def get_game_by_id_handler(request, game_id):
     response = {"id": 1,
                 "Name": "Thud",
                 "release_date": date.today().isoformat()}
@@ -24,9 +24,10 @@ def get_game_by_id_handler(request):
 
 
 def StartGameWithPlayers(request):
+    print('request: ', request.body)
     start_data = json.loads(request)
     response = game_manager.process_start(start_data)
-    return ''
+    return HttpResponse(response)
 
 
 def ExecuteMove(request):

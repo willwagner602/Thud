@@ -4,7 +4,7 @@ from Thud import DjangoThudServer
 from django.conf.urls import url
 
 urlpatterns = [
-        url(r"^getgamebyid/([0-9]+)", DjangoThudServer.get_game_by_id_handler),
+        url(r"^getgamebyid/([a-zA-Z0-9]+)", DjangoThudServer.get_game_by_id_handler),
         url(r"^version", DjangoThudServer.get_version),
         url(r"^start", DjangoThudServer.StartGameWithPlayers),
         url(r"^move", DjangoThudServer.ExecuteMove),
