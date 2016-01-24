@@ -24,47 +24,45 @@ def get_game_by_id_handler(request, game_id):
 
 
 def StartGameWithPlayers(request):
-    print('request: ', vars(request))
-    print(request.body.decode('utf-8'))
     start_data = json.loads(request.body.decode('utf-8'))
-    print("start data", start_data)
     response = game_manager.process_start(start_data)
-    print('response: ', response)
+
     return HttpResponse(json.dumps(response))
 
 
 def ExecuteMove(request):
-    move_data = json.loads(request)
+    move_data = json.loads(request.body.decode('utf-8'))
     response = game_manager.process_move(move_data)
+    print(response)
     return HttpResponse(json.dumps(response))
 
 
 def ValidateMove(request):
-    move_data = json.loads(request)
+    move_data = json.loads(request.body.decode('utf-8'))
     response = game_manager.process_move(move_data, test=True)
     return HttpResponse(json.dumps(response))
 
 
 def GetBoardState(request):
-    game = json.loads(request)
+    game = json.loads(request.body.decode('utf-8'))
     response = game_manager.report_game_state(game)
     return HttpResponse(json.dumps(response))
 
 
 def SaveGame(request):
-    game = json.loads(request)
+    game = json.loads(request.body.decode('utf-8'))
     response = game_manager.process_save(game)
     return HttpResponse(json.dumps(response))
 
 
 def LoadGame(request):
-    game = json.loads(request)
+    game = json.loads(request.body.decode('utf-8'))
     response = game_manager.process_load(game)
     return HttpResponse(json.dumps(response))
 
 
 def EndGame(request):
-    end_data = json.loads(request)
+    end_data = json.loads(request.body.decode('utf-8'))
     response = '' # game_manager.process_end(end_data)
     return HttpResponse(json.dumps(response))
 
