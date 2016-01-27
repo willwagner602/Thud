@@ -7,6 +7,7 @@ import string
 import sqlite3
 from pathlib import Path
 import json
+import os
 
 logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
 
@@ -177,6 +178,8 @@ class GameManager(object):
         '''
         # ToDo: 1) Figure out how to handle changing players in a game
         # 2) Break up repetitive work into new methods (e.g. loading database). 3) Exception catching for: connecting to database, writing to database, closing database.
+        print(os.getcwd())
+        logging.DEBUG('Current directory is ' + os.getcwd())
         gamedbpath = Path('.\games.db')
         player_one_name = self.active_games[game_id].player_one.name
         player_one_token = self.active_games[game_id].player_one.token
