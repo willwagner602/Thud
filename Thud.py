@@ -49,17 +49,17 @@ class Board(object):
     def populate_invalid_moves(self):
         invalid_flag = 0
         # fill 5x5 equilateral triangles at 4 corners of board
-        for y in range(15):
-            if y < 5:
-                row_squares = range(5-y, 10+y)
-                for x in range(15):
-                    if x not in row_squares:
-                        self.squares[y][x] = invalid_flag
-            elif y > 9:
-                row_squares = range((1+y-10), 24-y)
-                for x in range(15):
-                    if x not in row_squares:
-                        self.squares[y][x] = invalid_flag
+        for x in range(15):
+            if x < 5:
+                row_squares = range(5-x, 10+x)
+                for y in range(15):
+                    if y not in row_squares:
+                        self.squares[x][y] = invalid_flag
+            elif x > 9:
+                row_squares = range((1+x-10), 24-x)
+                for y in range(15):
+                    if y not in row_squares:
+                        self.squares[x][y] = invalid_flag
         # Place center stone
         self.squares[7][7] = 0
 
@@ -141,7 +141,6 @@ class GameManager(object):
         game = Game(player_one, player_two)
         game_token = self.generate_game_token(game)
         self.active_games[game_token] = game
-        self.save_game(game_token)
         logging.debug("{}: Game {} start with players {}, {}".format(
             datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), game_token, game.player_one.token,
             game.player_two.token))
@@ -161,7 +160,6 @@ class GameManager(object):
         try:
             game = self.active_games[game_token]
             if game.player_one.token == player_one_token and game.player_two.token == player_two_token:
-                self.save_game(game_token)
                 del self.active_games[game_token]
                 return True
         except KeyError:
@@ -289,7 +287,6 @@ class GameManager(object):
     def process_save(self, save_data):
         try:
             game_id = save_data['game']
-            saved = self.save_game(game_id)
             return saved
         except KeyError as e:
             return "Bad JSON data {} as part of {}.".format(e, save_data)
@@ -297,7 +294,6 @@ class GameManager(object):
     def process_load(self, load_data):
         try:
             game_id = load_data['game']
-            loaded = self.save_game(game_id)
             return loaded
         except KeyError as e:
             return "Bad JSON data {} as part of {}.".format(e, load_data)
@@ -320,7 +316,6 @@ class GameManager(object):
                 logging.debug("{}: Game {} found, attempting move from {} to {}.".format(
                     game_token, datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'), start, destination))
                 game = self.active_games[game_token]
-                self.save_game(game_token)
                 return game.execute_move(player_token, start, destination, test)
             else:
                 logging.debug("{}: Game {} not found.".format(game_token,

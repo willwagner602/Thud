@@ -6,7 +6,7 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import logging
-import Thud
+import Thud.Thud
 import sys
 
 
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     print("Thud server starting on port ", PORT)
 
     # start the game manager BEFORE the webserver
-    game_manager = Thud.GameManager()
+    game_manager = Thud.Thud.GameManager()
     run_server(PORT)
 
 
