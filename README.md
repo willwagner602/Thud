@@ -33,7 +33,7 @@ Toss, the lead Dwarf must land on the space occupied by a target troll.  Trolls 
 air easily, so they simply Shove their compatriots towards the Dwarves.  A Troll must land in an empty space at the end
 of a shove.
 
-    **insert example picture here**
+![Troll captures dwarf](https://github.com/willwagner602/Thud/troll_capture.png)
 
 # Thud Gameserver API
 
@@ -88,7 +88,8 @@ To validate a move, meaning ensure a move is valid without actually executing th
 same JSON you would use for "/move". This does not modify board state in any way, but means you don't need to implement
 game logic in your UI layer to do things like display possible valid moves.
 
-        
+
+### Note: This functionality isn't currently available on the production Thud server.  The below documentation will remain incomplete until this functionality is ported to Django.
 ##### Websockets for single players
 
 The weboscket connection is reached at "/match/playername".  You may not connect with a playername that is already
