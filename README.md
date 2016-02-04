@@ -33,7 +33,7 @@ Toss, the lead Dwarf must land on the space occupied by a target troll.  Trolls 
 air easily, so they simply Shove their compatriots towards the Dwarves.  A Troll must land in an empty space at the end
 of a shove.
 
-![Troll captures dwarf](https://github.com/willwagner602/Thud/troll_capture.png)
+![Troll captures dwarf](https://github.com/willwagner602/Thud/blob/master/troll_capture.png)
 
 # Thud Gameserver API
 
