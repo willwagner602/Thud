@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 import json
 
-logging.basicConfig(filename='ThudLog.log', level=logging.DEBUG)
+logging.basicConfig(filename= BASE_DIR + '\\ThudLog.log', level=logging.DEBUG)
 
 
 class Board(object):
