@@ -1,5 +1,6 @@
 __author__ = 'wwagner'
 
+import os
 import logging
 import datetime
 import random
@@ -8,7 +9,9 @@ import sqlite3
 from pathlib import Path
 import json
 
-logging.basicConfig(filename= BASE_DIR + '\\ThudLog.log', level=logging.DEBUG)
+from MainServer.settings import BASE_DIR
+
+logging.basicConfig(filename=BASE_DIR + '\\ThudLog.log', level=logging.DEBUG)
 
 
 class Board(object):
