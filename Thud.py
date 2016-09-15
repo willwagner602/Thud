@@ -11,7 +11,7 @@ import json
 
 from MainServer.settings import BASE_DIR
 
-logging.basicConfig(filename=BASE_DIR + '\\ThudLog.log', level=logging.DEBUG)
+logging.basicConfig(filename=os.path.join(BASE_DIR, 'ThudLog.log'), level=logging.DEBUG)
 
 
 class Board(object):
