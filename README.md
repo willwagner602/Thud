@@ -37,7 +37,7 @@ of a shove.
 
 # Thud Gameserver API
 
-This backend is run at http://willwagner.me, with a static IP of 192.241.198.50:12000.  Migrations of this address will 
+This backend is run at http://willwagner.me:12000.  Migrations of this address will
 be posted here on my Thud github page.
 
 There are two possible methods for a client to start a game.  Using HTTP POST you can start a game for multiple players
