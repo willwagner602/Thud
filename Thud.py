@@ -9,12 +9,12 @@ import sqlite3
 from pathlib import Path
 import json
 
+# setup logging to work correctly both with django and standalone
 try:
     from MainServer.settings import BASE_DIR
+    logging.basicConfig(filename=os.path.join(os.path.dirname(BASE_DIR), 'ThudLog.log'), level=logging.DEBUG)
 except ImportError:
-    BASE_DIR = os.getcwd()
-
-logging.basicConfig(filename=os.path.join(os.path.dirname(BASE_DIR), 'ThudLog.log'), level=logging.DEBUG)
+    logging.basicConfig(filename=os.path.join(os.getcwd(), 'ThudLog.log'), level=logging.DEBUG)
 
 
 class Board(object):
