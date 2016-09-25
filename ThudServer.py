@@ -6,9 +6,13 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 import logging
-import Thud.Thud
 import sys
 
+# setup import to work with django or standalone
+try:
+    import Thud.Thud as Thud
+except ImportError:
+    import Thud
 
 class BaseHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
@@ -148,7 +152,7 @@ if __name__ == '__main__':
     print("Thud server starting on port ", PORT)
 
     # start the game manager BEFORE the webserver
-    game_manager = Thud.Thud.GameManager()
+    game_manager = Thud.GameManager()
     run_server(PORT)
 
 
