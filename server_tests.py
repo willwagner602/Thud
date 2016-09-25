@@ -129,7 +129,7 @@ class LiveServerTest(unittest.TestCase):
 
     def setUp(self):
         # start the game by hitting the endpoint with an appropriate websocket
-        self.base_url = 'http://104.236.40.116/'
+        self.base_url = 'http://willwagner.me:12000/'
         self.start_url = self.base_url + 'start'
         self.move_url = self.base_url + 'move'
         self.validate_url = self.base_url + 'move/validate'
