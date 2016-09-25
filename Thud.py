@@ -9,7 +9,10 @@ import sqlite3
 from pathlib import Path
 import json
 
-from MainServer.settings import BASE_DIR
+try:
+    from MainServer.settings import BASE_DIR
+except ImportError:
+    BASE_DIR = os.getcwd()
 
 logging.basicConfig(filename=os.path.join(os.path.dirname(BASE_DIR), 'ThudLog.log'), level=logging.DEBUG)
 
